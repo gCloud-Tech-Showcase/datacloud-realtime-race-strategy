@@ -1,7 +1,7 @@
 # =============================================================================
 # BIGQUERY DATASETS
 # One dataset per medallion STAGE (semantic names), so each stage can be shared
-# independently as a Data Product later. The domain ("__DOMAIN_TAG__") is a
+# independently as a Data Product later. The domain ("race_strategy") is a
 # Dataform tag — never a dataset name, never a table-name prefix.
 #
 #   raw         = data landed as-is (object tables, loaded files)
@@ -18,10 +18,10 @@ resource "google_bigquery_dataset" "stages" {
   for_each = {
     # Delete this line if the domain has no landed raw data — e.g. when the only
     # source is an external public table referenced by a Dataform declaration.
-    raw = "RAW: __DOMAIN_TITLE__ source data as landed"
+    raw = "RAW: F1 Pit Wall: Real-Time Race Strategy source data as landed"
 
-    processed = "PROCESSED: cleansed & typed __DOMAIN_TITLE__ data"
-    serving   = "SERVING: __DOMAIN_TITLE__ marts, models and predictions"
+    processed = "PROCESSED: cleansed & typed F1 Pit Wall: Real-Time Race Strategy data"
+    serving   = "SERVING: F1 Pit Wall: Real-Time Race Strategy marts, models and predictions"
 
     # Not a medallion stage — the shared namespace Dataform materializes both
     # hard-fail assertions and warning-level monitoring views into
@@ -38,9 +38,9 @@ resource "google_bigquery_dataset" "stages" {
   delete_contents_on_destroy = true
 
   labels = {
-    project = "__REPO_NAME__"
+    project = "datacloud-realtime-race-strategy"
     purpose = "data-domain"
-    domain  = "__DOMAIN_SLUG__"
+    domain  = "pitwall"
     stage   = each.key
   }
 

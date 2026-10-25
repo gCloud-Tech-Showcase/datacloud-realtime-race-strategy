@@ -1,4 +1,4 @@
-# __DOMAIN_TITLE__
+# F1 Pit Wall: Real-Time Race Strategy
 
 <!-- SKELETON: the landing page for the docs. Replace the content, keep the
      structure. One sentence on what the reader learns, then the sections. -->

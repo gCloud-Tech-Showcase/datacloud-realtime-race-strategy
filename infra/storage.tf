@@ -30,9 +30,9 @@ resource "google_storage_bucket" "multimodal_data" {
   force_destroy = true
 
   labels = {
-    project = "__REPO_NAME__"
+    project = "datacloud-realtime-race-strategy"
     purpose = "unstructured-data"
-    domain  = "__DOMAIN_SLUG__"
+    domain  = "pitwall"
   }
 
   depends_on = [time_sleep.api_propagation]
