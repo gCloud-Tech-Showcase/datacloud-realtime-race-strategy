@@ -7,7 +7,7 @@
 # =============================================================================
 
 locals {
-  services = toset(["replayer"])
+  services = toset(["replayer", "strategist", "pitwall"])
 
   service_source_hash = {
     for name in local.services : name => substr(sha1(join("", [

@@ -26,3 +26,8 @@ output "vertex_ai_connection_id" {
   description = "The BigQuery connection that calls Gemini"
   value       = google_bigquery_connection.vertex_ai.id
 }
+
+output "pit_wall_proxy_command" {
+  description = "Run this, then open http://localhost:8080 to see the pit wall"
+  value       = "gcloud run services proxy ${google_cloud_run_v2_service.pitwall.name} --region=${var.region} --project=${var.project_id}"
+}

@@ -6,7 +6,8 @@
 #      needs before it can manage ANY service on a fresh project.
 #   2. The remote-state bucket: the backend must exist before `tofu init` and
 #      cannot be stored in the state it holds.
-#   3. Injecting that bucket into the backend, because backend blocks cannot read
+#   3. The pit wall viewer: your gcloud account, in infra/viewer.auto.tfvars.
+#   4. Injecting that bucket into the backend, because backend blocks cannot read
 #      variables (so the name is derived here instead of duplicated in .tf).
 #
 # Config comes from ONE place: the defaults in infra/variables.tf. Override with
@@ -38,7 +39,7 @@ while [[ $# -gt 0 ]]; do
     --location=*) LOCATION="${1#*=}"; shift ;;
     --migrate)    MIGRATE=true; shift ;;
     -h|--help)
-      sed -n '2,22p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+      sed -n '2,23p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
       exit 0
       ;;
     *)
@@ -127,7 +128,23 @@ echo "==> Ensuring object versioning is enabled"
 gcloud storage buckets update "gs://${BUCKET}" --versioning --project="$PROJECT_ID"
 
 # -----------------------------------------------------------------------------
-# 3. Backend init — bucket injected here rather than hardcoded in providers.tf.
+# 3. Pit wall viewer: the pit wall is private, so let the person running this
+# script open it. Written to a gitignored tfvars file that tofu loads by itself.
+# -----------------------------------------------------------------------------
+VIEWER_FILE="${INFRA_DIR}/viewer.auto.tfvars"
+if [[ ! -f "$VIEWER_FILE" ]]; then
+  ACCOUNT="$(gcloud config get account 2>/dev/null)"
+  if [[ "$ACCOUNT" == *.gserviceaccount.com ]]; then
+    MEMBER="serviceAccount:${ACCOUNT}"
+  else
+    MEMBER="user:${ACCOUNT}"
+  fi
+  echo "pit_wall_viewers = [\"${MEMBER}\"]" > "$VIEWER_FILE"
+  echo "==> Pit wall viewer: ${MEMBER} (in ${VIEWER_FILE})"
+fi
+
+# -----------------------------------------------------------------------------
+# 4. Backend init — bucket injected here rather than hardcoded in providers.tf.
 # -----------------------------------------------------------------------------
 echo ""
 cd "$INFRA_DIR"

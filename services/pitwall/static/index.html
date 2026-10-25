@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>F1 Pit Wall</title>
+<style>
+  :root {
+    --bg: #0d1016; --panel: #151a23; --line: #232b38; --text: #e6e9ef; --muted: #8a94a6;
+    --accent: #e10600; --ok: #22c55e; --warn: #f59e0b; --info: #38bdf8;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif; }
+  header { display: flex; align-items: center; gap: 24px; padding: 14px 20px; border-bottom: 1px solid var(--line); }
+  h1 { font-size: 18px; margin: 0; letter-spacing: .5px; }
+  h1 span { color: var(--accent); }
+  .clock { display: flex; gap: 20px; color: var(--muted); }
+  .clock b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .spacer { flex: 1; }
+  button { background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 8px 16px; font-weight: 600; cursor: pointer; }
+  button.secondary { background: var(--line); }
+  button:disabled { opacity: .4; cursor: default; }
+  #status { padding: 8px 20px; color: var(--muted); border-bottom: 1px solid var(--line); min-height: 36px; }
+  main { display: grid; grid-template-columns: 1.1fr 1fr 1.3fr; gap: 12px; padding: 12px; height: calc(100vh - 110px); }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: auto; }
+  section h2 { position: sticky; top: 0; margin: 0; padding: 10px 14px; font-size: 12px; text-transform: uppercase;
+               letter-spacing: 1px; color: var(--muted); background: var(--panel); border-bottom: 1px solid var(--line); }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  td { padding: 5px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td.pos { color: var(--muted); width: 28px; }
+  td.drv { font-weight: 700; border-left: 4px solid transparent; }
+  .tyre { display: inline-block; width: 18px; height: 18px; border-radius: 50%; border: 3px solid; text-align: center;
+          font-size: 9px; line-height: 12px; font-weight: 700; margin-right: 4px; }
+  .SOFT { border-color: #ef4444; } .MEDIUM { border-color: #facc15; } .HARD { border-color: #f1f5f9; }
+  .INTERMEDIATE { border-color: #22c55e; } .WET { border-color: #3b82f6; }
+  .item { padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  .item.new { animation: flash 2s ease-out; }
+  @keyframes flash { from { background: #3a1414; } to { background: transparent; } }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; margin-right: 6px; }
+  .SAFETY_CAR { background: var(--warn); color: #111; } .RAIN_STARTED { background: var(--info); color: #111; }
+  .PIT_STOP { background: var(--line); } .GAP_CLOSING { background: #7c3aed; }
+  .meta { color: var(--muted); font-size: 12px; }
+  .call { white-space: pre-wrap; margin-top: 6px; }
+  .failed { color: var(--accent); }
+  .empty { padding: 14px; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1><span>F1</span> Pit Wall</h1>
+  <div class="clock">
+    <div>Lap <b id="lap">-</b> / 57</div>
+    <div>Race time <b id="race-time">-</b></div>
+    <div>Events <b id="events">0</b></div>
+  </div>
+  <div class="spacer"></div>
+  <button id="start">Start race</button>
+  <button id="stop" class="secondary" disabled>Stop</button>
+</header>
+<div id="status">Press Start race to replay the 2025 Australian Grand Prix, laps 30 to 50.</div>
+<main>
+  <section><h2>Timing</h2><table id="timing"></table></section>
+  <section><h2>Moments</h2><div id="moments"><div class="empty">No moments yet.</div></div></section>
+  <section><h2>Strategy calls</h2><div id="calls"><div class="empty">No calls yet.</div></div></section>
+</main>
+<script>
+const state = {
+  runId: localStorage.getItem("runId"),
+  jobIds: JSON.parse(localStorage.getItem("jobIds") || "[]"),
+  startingQueries: false,
+  seenMoments: new Set(),
+  seenCalls: new Set(),
+  codes: {},
+};
+const $ = (id) => document.getElementById(id);
+const status = (text) => { $("status").textContent = text; };
+const save = () => {
+  localStorage.setItem("runId", state.runId || "");
+  localStorage.setItem("jobIds", JSON.stringify(state.jobIds));
+};
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const clock = (iso) => iso ? iso.slice(11, 19) : "-";
+const driver = (n) => n == null ? "" : (state.codes[n] || `#${n}`);
+
+async function post(path, body) {
+  const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error || r.statusText);
+  return data;
+}
+
+$("start").onclick = async () => {
+  $("start").disabled = true;
+  try {
+    if (state.jobIds.length) await post("/api/queries/stop", { job_ids: state.jobIds });
+    const { run_id } = await post("/api/start");
+    Object.assign(state, { runId: run_id, jobIds: [], seenMoments: new Set(), seenCalls: new Set() });
+    save();
+    status(`Replay ${run_id} starting. The replayer job needs about 90 seconds before the first event.`);
+  } catch (e) {
+    status(`Could not start: ${e.message}`);
+  }
+  $("start").disabled = false;
+};
+
+$("stop").onclick = async () => {
+  await post("/api/queries/stop", { job_ids: state.jobIds });
+  state.jobIds = [];
+  save();
+  status("Continuous queries cancelled. Nothing is billing for slots now.");
+};
+
+async function startQueries() {
+  state.startingQueries = true;
+  status("Events are arriving. Starting the two continuous queries...");
+  try {
+    const { job_ids } = await post("/api/queries/start");
+    state.jobIds = job_ids;
+    save();
+    status(`Continuous queries running: ${job_ids.join(", ")}. Press Stop when the race is over.`);
+  } catch (e) {
+    status(`Could not start the continuous queries: ${e.message}`);
+  }
+  state.startingQueries = false;
+}
+
+function render(data) {
+  const c = data.clock;
+  $("events").textContent = c.events.toLocaleString();
+  $("race-time").textContent = clock(c.race_time);
+  const lap = Math.max(0, ...data.timing.map((t) => t.lap || 0));
+  $("lap").textContent = lap || "-";
+  data.timing.forEach((t) => { state.codes[t.driver_number] = t.code; });
+
+  $("timing").innerHTML = data.timing.map((t) => `
+    <tr>
+      <td class="pos">${t.position ?? ""}</td>
+      <td class="drv" style="border-left-color:#${esc(t.colour)}">${esc(t.code)}</td>
+      <td>${esc(t.position === 1 ? "Leader" : t.gap_to_leader ?? "")}</td>
+      <td>${esc(t.position === 1 ? "" : t.interval_ahead ?? "")}</td>
+      <td><span class="tyre ${esc(t.compound)}">${esc((t.compound || "?")[0])}</span>${t.tyre_age ?? ""}</td>
+      <td>${t.last_lap ? t.last_lap.toFixed(3) : ""}</td>
+    </tr>`).join("");
+
+  $("moments").innerHTML = data.moments.length ? data.moments.map((m) => {
+    const key = `${m.moment}|${m.driver_number}|${m.event_ts}`;
+    const fresh = !state.seenMoments.has(key); state.seenMoments.add(key);
+    return `<div class="item ${fresh ? "new" : ""}">
+      <span class="badge ${esc(m.moment)}">${esc(m.moment.replace("_", " "))}</span>
+      <b>${esc(driver(m.driver_number))}</b> ${m.lap ? `lap ${m.lap}` : ""}
+      <div class="meta">${esc(m.detail)} · race ${clock(m.event_ts)}</div></div>`;
+  }).join("") : '<div class="empty">No moments yet.</div>';
+
+  $("calls").innerHTML = data.calls.length ? data.calls.map((k) => {
+    const key = `${k.moment}|${k.driver_number}|${k.event_ts}`;
+    const fresh = !state.seenCalls.has(key); state.seenCalls.add(key);
+    const body = k.status === "OK" ? esc(k.call_text) : `<span class="failed">Call failed: ${esc(k.error)}</span>`;
+    return `<div class="item ${fresh ? "new" : ""}">
+      <span class="badge ${esc(k.moment)}">${esc(k.moment.replace("_", " "))}</span>
+      <b>${esc(driver(k.driver_number))}</b> ${k.lap ? `lap ${k.lap}` : ""}
+      <span class="meta">· ${(k.latency_ms / 1000).toFixed(1)} s</span>
+      <div class="call">${body}</div></div>`;
+  }).join("") : '<div class="empty">No calls yet.</div>';
+
+  if (c.events > 0 && !state.jobIds.length && !state.startingQueries) startQueries();
+  $("stop").disabled = !state.jobIds.length;
+}
+
+async function poll() {
+  if (state.runId) {
+    try {
+      const r = await fetch(`/api/state?run_id=${encodeURIComponent(state.runId)}`);
+      if (r.ok) render(await r.json());
+    } catch (e) { /* keep polling through a transient error */ }
+  }
+  setTimeout(poll, 2000);
+}
+poll();
+</script>
+</body>
+</html>

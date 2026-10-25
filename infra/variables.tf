@@ -83,3 +83,9 @@ variable "gap_closing_seconds" {
   type        = number
   default     = 1
 }
+
+variable "pit_wall_viewers" {
+  description = "IAM members allowed to open the pit wall, for example [\"user:you@example.com\"]. scripts/setup.sh writes your gcloud account to viewer.auto.tfvars."
+  type        = list(string)
+  default     = []
+}
