@@ -1,45 +1,31 @@
 # =============================================================================
 # ENABLED APIS
-# Only the services the pitwall domain actually uses. Lines carrying an
-# [addon:*] tag belong to the GCS + BigLake + Gemini add-on — they go along with
-# storage.tf / seed.tf / scripts/ / data/ if it's unused. Lines carrying a
-# [visibility:*] tag belong to one of the two Dataform git-link paths; init.sh
-# keeps whichever matches the repo. (Wildcards, so init.sh doesn't strip these
-# lines as tags in their own right.)
+# Only the services this demo uses.
 # =============================================================================
 
 resource "google_project_service" "apis" {
   for_each = toset([
-    # Bootstrap pair — also pre-enabled imperatively by scripts/setup.sh, since
-    # the provider needs CRM before it can manage any service. Declared here too
-    # so the set is complete and self-documenting.
-    "cloudresourcemanager.googleapis.com", # provider manages google_project_service via CRM
-    "serviceusage.googleapis.com",         # enable/disable of the services below
+    # Bootstrap pair. scripts/setup.sh also enables them imperatively, because
+    # the provider needs Cloud Resource Manager before it can manage any service.
+    "cloudresourcemanager.googleapis.com",
+    "serviceusage.googleapis.com",
 
-    "bigquery.googleapis.com",       # queries, tables, models
-    "dataform.googleapis.com",       # managed git-linked Dataform repository
-    "iam.googleapis.com",            # execution service account
-    "iamcredentials.googleapis.com", # service-account impersonation (Dataform act-as runner)
-    "datalineage.googleapis.com",    # automatic BigQuery/Dataform data lineage capture
+    "bigquery.googleapis.com",
+    "bigqueryconnection.googleapis.com", # connection that calls Gemini from BigQuery
+    "aiplatform.googleapis.com",         # Gemini, called through AI.GENERATE
+    "storage.googleapis.com",            # bucket holding the downloaded race data
+    "iam.googleapis.com",
+    "iamcredentials.googleapis.com", # service-account impersonation
 
-    # Needed for BQML models registered in Vertex (model_registry='vertex_ai'),
-    # and for any Gemini call from BigQuery. Keep unless the domain is pure SQL.
-    "aiplatform.googleapis.com",
-
-    # BigQuery Studio notebooks (notebooks.tf, notebook_runtime.tf). Without
-    # these the console shows an Enable APIs prompt on every notebook.
-    "compute.googleapis.com",          # Colab Enterprise runtime and its network
-    "cloudaicompanion.googleapis.com", # Gemini in BigQuery, including the notebook assistant
-
-
-    "bigqueryconnection.googleapis.com", # [addon:unstructured] BQ -> Vertex/GCS connection
-    "storage.googleapis.com",            # [addon:unstructured] bucket backing the object table
+    # BigQuery Studio saved queries are stored as Dataform repositories
+    # (saved_queries.tf). There is no Dataform pipeline in this demo.
+    "dataform.googleapis.com",
   ])
 
   service = each.value
 
   # Disabling a service on teardown can break unrelated things in a project
-  # that outlives this domain.
+  # that outlives this demo.
   disable_on_destroy = false
 }
 
