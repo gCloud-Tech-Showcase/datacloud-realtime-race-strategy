@@ -69,11 +69,11 @@ variable "replay_speed" {
   }
 }
 
-# Moment rules in queries/03b-moments-windowed.sql. TUMBLE windows close on
-# arrival time in BigQuery, so at replay_speed 5 a 30-second window covers
+# Gap-closing rule in queries/03b-moments-windowed.sql. TUMBLE windows close
+# on arrival time in BigQuery, so at replay_speed 5 a 30-second window covers
 # 2.5 minutes of racing.
 variable "window_seconds" {
-  description = "TUMBLE window, in seconds of arrival time, for the rain and gap-closing rules"
+  description = "TUMBLE window, in seconds of arrival time, for the gap-closing rule"
   type        = number
   default     = 30
 }

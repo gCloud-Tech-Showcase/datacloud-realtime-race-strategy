@@ -9,6 +9,10 @@ Each moment is answered once. Pub/Sub delivers at least once, and the
 continuous queries can flag a moment again after a restart, so a moment that
 already has a call is acknowledged without a second Gemini request.
 
+Only the moments in CALL_MOMENTS get a call. A pit stop alone does not: under
+a safety car most of the field pits within a minute, and a call per stop
+repeats itself and queues the calls that matter.
+
 A failed call is never hidden: the error is logged at ERROR with the model ID,
 and the row is written with status FAILED, so the pit wall shows it.
 """
@@ -30,6 +34,7 @@ PROJECT_ID = os.environ["PROJECT_ID"]
 CALLS_TABLE = os.environ["CALLS_TABLE"]
 MODEL = os.environ["MODEL"]
 STRATEGIST_SQL = os.environ["STRATEGIST_SQL"]
+CALL_MOMENTS = set(os.environ["CALL_MOMENTS"].split(","))
 VARIABLES_MARKER = "-- (the strategist service sets the four variables here)"
 
 SET_VARIABLES = """
@@ -93,6 +98,9 @@ def handle_push():
     moment = json.loads(base64.b64decode(message.get("data", "")) or b"{}")
     if not moment.get("run_id") or not moment.get("moment"):
         logger.warning("ignoring a message without run_id or moment: %s", message.get("messageId"))
+        return "", 204
+
+    if moment["moment"] not in CALL_MOMENTS:
         return "", 204
 
     if already_answered(moment):

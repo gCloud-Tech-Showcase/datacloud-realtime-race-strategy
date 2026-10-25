@@ -15,6 +15,7 @@ table fails with "Invalid timestamp bounds".
 import logging
 import os
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 import google.auth
 from flask import Flask, jsonify, request, send_from_directory
@@ -38,6 +39,9 @@ _credentials, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/c
 session = AuthorizedSession(_credentials)
 bq = bigquery.Client(project=PROJECT_ID)
 app = Flask(__name__, static_folder="static")
+# The four state queries run side by side, so one poll takes as long as the
+# slowest query instead of all four in a row.
+pool = ThreadPoolExecutor(max_workers=8)
 
 
 def run_query(sql: str, run_id: str) -> list[dict]:
@@ -128,14 +132,14 @@ def state():
     run_id = request.args.get("run_id", "")
     if not run_id:
         return jsonify({"error": "run_id is required"}), 400
-    return jsonify(
-        {
-            "clock": _jsonable(run_query(CLOCK_SQL.format(project=PROJECT_ID), run_id))[0],
-            "timing": _jsonable(run_query(TIMING_SQL.format(project=PROJECT_ID), run_id)),
-            "moments": _jsonable(run_query(MOMENTS_SQL.format(project=PROJECT_ID), run_id)),
-            "calls": _jsonable(run_query(CALLS_SQL.format(project=PROJECT_ID), run_id)),
-        }
-    )
+    queries = {"clock": CLOCK_SQL, "timing": TIMING_SQL, "moments": MOMENTS_SQL, "calls": CALLS_SQL}
+    futures = {
+        name: pool.submit(run_query, sql.format(project=PROJECT_ID), run_id)
+        for name, sql in queries.items()
+    }
+    result = {name: _jsonable(future.result()) for name, future in futures.items()}
+    result["clock"] = result["clock"][0]
+    return jsonify(result)
 
 
 @app.post("/api/start")

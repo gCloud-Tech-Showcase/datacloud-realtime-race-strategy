@@ -9,6 +9,11 @@ A record is published at the moment it became known during the race, never
 earlier: a lap when it ends, and a stint without its last lap. Otherwise the
 strategist could see the future.
 
+Each weather record also carries previous_rainfall, the reading before it,
+which the replayer adds. A one-row rule can then spot the change from dry to
+wet. A TUMBLE window misses the change when the two readings fall on either
+side of a window boundary (seen on 2026-10-25).
+
 Environment:
   PROJECT_ID, TOPIC, BUCKET, SESSION_KEY  where to read and publish
   WINDOW_START, WINDOW_END                race time, ISO 8601 UTC
@@ -51,7 +56,14 @@ def build_events(bucket, session_key, start, end):
             window.append((known_at, event_type, record))
 
     for stream in WINDOW_STREAMS:
-        for record in read_stream(bucket, session_key, stream):
+        records = read_stream(bucket, session_key, stream)
+        if stream == "weather":
+            records.sort(key=lambda r: r["date"])
+            previous = None
+            for record in records:
+                record["previous_rainfall"] = previous
+                previous = record.get("rainfall")
+        for record in records:
             place(parse_ts(record["date"]), stream, record)
 
     # The running order at the window start is the last position of each car.

@@ -73,6 +73,10 @@ resource "google_cloud_run_v2_service" "strategist" {
         value = "gemini-3.8-flash"
       }
       env {
+        name  = "CALL_MOMENTS"
+        value = "SAFETY_CAR,RAIN_STARTED,GAP_CLOSING"
+      }
+      env {
         name  = "STRATEGIST_SQL"
         value = local.rendered_queries["04-strategist-call"]
       }

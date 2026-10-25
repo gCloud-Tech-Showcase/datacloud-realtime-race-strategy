@@ -15,20 +15,25 @@ EXPORT DATA OPTIONS (
           AND JSON_VALUE(payload, '$.category') = 'SafetyCar'
           AND JSON_VALUE(payload, '$.message') LIKE '%DEPLOYED%' THEN 'SAFETY_CAR'
         WHEN event_type = 'pit' THEN 'PIT_STOP'
+        -- The replayer adds previous_rainfall to each weather reading.
+        WHEN event_type = 'weather'
+          AND SAFE.INT64(payload.rainfall) = 1
+          AND SAFE.INT64(payload.previous_rainfall) = 0 THEN 'RAIN_STARTED'
       END AS moment,
       driver_number,
       SAFE.INT64(payload.lap_number) AS lap,
       event_ts,
-      CASE
-        WHEN event_type = 'race_control' THEN JSON_VALUE(payload, '$.message')
-        ELSE FORMAT('pit lane %s s', JSON_VALUE(payload, '$.lane_duration'))
+      CASE event_type
+        WHEN 'race_control' THEN JSON_VALUE(payload, '$.message')
+        WHEN 'pit' THEN FORMAT('pit lane %s s', JSON_VALUE(payload, '$.lane_duration'))
+        WHEN 'weather' THEN 'rainfall 0 -> 1'
       END AS detail
     -- Change history lags the writes, so the start time sits 10 minutes back.
     -- A start time after the readable end fails with "Invalid timestamp bounds"
     -- (verified on 2026-10-25). A moment from an earlier run can be flagged
     -- again, so the strategist answers each moment once.
     FROM APPENDS(TABLE `${project_id}.raw.raw_events`, CURRENT_TIMESTAMP() - INTERVAL 10 MINUTE)
-    WHERE event_type IN ('race_control', 'pit')
+    WHERE event_type IN ('race_control', 'pit', 'weather')
   )
   WHERE moment IS NOT NULL
 );
