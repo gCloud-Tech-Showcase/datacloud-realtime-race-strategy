@@ -1,14 +1,15 @@
 -- 04 Strategist: the call for one moment
 -- Snapshots the field at one race moment and asks Gemini for the strategy call.
 -- The strategist service runs this same script for every moment and sets the
--- four variables from the moment. Here they default to the lap-47 safety car
+-- five variables from the moment. Here they default to the lap-47 safety car
 -- of the latest replay.
 DECLARE target_run STRING DEFAULT (
   SELECT run_id FROM `${project_id}.serving.moments` ORDER BY publish_time DESC LIMIT 1);
 DECLARE moment_name STRING DEFAULT 'SAFETY_CAR';
 DECLARE moment_detail STRING DEFAULT 'SAFETY CAR DEPLOYED';
+DECLARE moment_driver INT64 DEFAULT NULL;
 DECLARE race_time TIMESTAMP DEFAULT TIMESTAMP '2025-03-16 05:41:06+00';
--- (the strategist service sets the four variables here)
+-- (the strategist service sets the five variables here)
 
 WITH ev AS (
   SELECT event_type, event_ts, driver_number, payload
@@ -95,6 +96,7 @@ SELECT
       '<constraints>\n',
       '- Use only the cars, gaps and tyres in the context. Do NOT invent drivers or data.\n',
       '- At most 5 short lines, one per car that should act. Each line: driver code, BOX or STAY OUT, the tyre to fit if boxing, and why.\n',
+      '- If the moment names a car, start with that car and its rivals around it.\n',
       '- If no car should change plan, say so in one line.\n',
       '</constraints>\n',
       '<context>\n',
@@ -103,8 +105,10 @@ SELECT
       'Field (position, driver, gap to leader, interval to car ahead, tyre compound, tyre age, last 3 lap times in seconds):\n',
       field_text, '\n',
       '</context>\n',
-      '<task>Based on the information above, the moment is: ', moment_name, ' (', moment_detail,
-      '). Give the strategy call.</task>'),
+      '<task>Based on the information above, the moment is: ', moment_name,
+      IFNULL(CONCAT(' for ', (SELECT code FROM drivers WHERE driver_number = moment_driver),
+        ' (#', CAST(moment_driver AS STRING), ')'), ''),
+      ' (', moment_detail, '). Give the strategy call.</task>'),
     connection_id => '${project_id}.us.vertex-ai-connection',
     -- gemini-3.8-flash: retirement date "September 2, 2027 or later", from
     -- https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/3-8-flash

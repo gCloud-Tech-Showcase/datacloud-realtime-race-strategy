@@ -35,13 +35,14 @@ CALLS_TABLE = os.environ["CALLS_TABLE"]
 MODEL = os.environ["MODEL"]
 STRATEGIST_SQL = os.environ["STRATEGIST_SQL"]
 CALL_MOMENTS = set(os.environ["CALL_MOMENTS"].split(","))
-VARIABLES_MARKER = "-- (the strategist service sets the four variables here)"
+VARIABLES_MARKER = "-- (the strategist service sets the five variables here)"
 
 SET_VARIABLES = """
 SET target_run = @run_id;
 SET moment_name = @moment;
 SET moment_detail = @detail;
 SET race_time = @race_time;
+SET moment_driver = @driver_number;
 """
 
 if VARIABLES_MARKER not in STRATEGIST_SQL:
@@ -82,6 +83,7 @@ def make_call(moment: dict) -> tuple[int | None, str, str | None]:
                 bigquery.ScalarQueryParameter("moment", "STRING", moment["moment"]),
                 bigquery.ScalarQueryParameter("detail", "STRING", moment.get("detail") or ""),
                 bigquery.ScalarQueryParameter("race_time", "TIMESTAMP", moment["event_ts"]),
+                bigquery.ScalarQueryParameter("driver_number", "INT64", moment["driver_number"]),
             ]
         ),
     )
