@@ -11,9 +11,11 @@ resource "google_project_service" "apis" {
     "serviceusage.googleapis.com",
 
     "bigquery.googleapis.com",
-    "bigqueryconnection.googleapis.com", # connection that calls Gemini from BigQuery
-    "aiplatform.googleapis.com",         # Gemini, called through AI.GENERATE
-    "storage.googleapis.com",            # bucket holding the downloaded race data
+    "bigqueryreservation.googleapis.com", # Enterprise reservation for continuous queries
+    "bigqueryconnection.googleapis.com",  # connection that calls Gemini from BigQuery
+    "aiplatform.googleapis.com",          # Gemini, called through AI.GENERATE
+    "pubsub.googleapis.com",
+    "storage.googleapis.com", # bucket holding the downloaded race data
     "iam.googleapis.com",
     "iamcredentials.googleapis.com", # service-account impersonation
 
@@ -35,6 +37,12 @@ resource "google_project_service" "apis" {
 # calls one of these services depends on this wait instead of on the service.
 resource "time_sleep" "api_propagation" {
   create_duration = "90s"
+
+  # A time_sleep waits only when it is created. Recreate it when the API list
+  # changes, so an API added later gets the same wait.
+  triggers = {
+    apis = join(",", sort(keys(google_project_service.apis)))
+  }
 
   depends_on = [google_project_service.apis]
 }

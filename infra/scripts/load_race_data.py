@@ -7,10 +7,11 @@ committed to this repository. Each stream lands as one JSON array:
 
     gs://<bucket>/openf1/<session_key>/<stream>.json
 
-High-rate streams (car_data, intervals, position, race control, weather, pit,
-overtakes) are limited to the replay window. Laps, stints and drivers are
-downloaded for the whole race, because the replayer builds the pre-race state
-from them.
+High-rate streams (car_data, intervals, race control, weather, pit, overtakes)
+are limited to the replay window. Laps, stints, drivers and positions are
+downloaded for the whole race, because the replayer builds the state at the
+start of the window from them. Positions only record changes, so the running
+order at the window start comes from earlier records.
 
 If every file is already in the bucket, the script does nothing, so a re-apply
 never calls OpenF1. During a live F1 session, OpenF1 refuses all requests without
@@ -38,13 +39,12 @@ OPENF1 = "https://api.openf1.org/v1/"
 WINDOW_STREAMS = [
     "car_data",
     "intervals",
-    "position",
     "race_control",
     "weather",
     "pit",
     "overtakes",
 ]
-WHOLE_RACE_STREAMS = ["laps", "stints", "drivers"]
+WHOLE_RACE_STREAMS = ["laps", "stints", "drivers", "position"]
 MAX_ATTEMPTS = 6
 
 
