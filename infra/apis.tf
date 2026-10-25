@@ -15,7 +15,10 @@ resource "google_project_service" "apis" {
     "bigqueryconnection.googleapis.com",  # connection that calls Gemini from BigQuery
     "aiplatform.googleapis.com",          # Gemini, called through AI.GENERATE
     "pubsub.googleapis.com",
-    "storage.googleapis.com", # bucket holding the downloaded race data
+    "run.googleapis.com",              # replayer job, strategist, pit wall
+    "artifactregistry.googleapis.com", # their container images
+    "cloudbuild.googleapis.com",       # builds the images during apply
+    "storage.googleapis.com",          # bucket holding the downloaded race data
     "iam.googleapis.com",
     "iamcredentials.googleapis.com", # service-account impersonation
 

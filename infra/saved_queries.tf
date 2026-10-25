@@ -10,6 +10,10 @@
 # "-- 02 Data: portfolio by desk". Number the files like the guide: 00 for
 # checks, the step number for each step, 99 for reset.
 #
+# Each file is a template: ${project_id} and the moment-rule settings below are
+# filled in before the file is committed. The pit wall runs the same rendered
+# continuous queries, so the saved query and the Start button never drift.
+#
 # Editing a query file and running `tofu apply` deploys the new version and
 # replaces any edits made in the console.
 # =============================================================================
@@ -18,6 +22,17 @@ locals {
   saved_queries = {
     for f in fileset("${path.module}/../queries", "*.sql") :
     trimsuffix(f, ".sql") => f
+  }
+
+  query_variables = {
+    project_id          = var.project_id
+    window_seconds      = var.window_seconds
+    gap_closing_seconds = var.gap_closing_seconds
+  }
+
+  rendered_queries = {
+    for name, f in local.saved_queries :
+    name => templatefile("${path.module}/../queries/${f}", local.query_variables)
   }
 }
 
@@ -52,10 +67,13 @@ resource "terraform_data" "saved_query_content" {
 
   triggers_replace = [
     google_dataform_repository.saved_query[each.key].id,
-    filesha256("${path.module}/../queries/${each.value}"),
+    sha256(local.rendered_queries[each.key]),
   ]
 
   provisioner "local-exec" {
-    command = "python3 ${path.module}/scripts/commit_asset.py ${google_dataform_repository.saved_query[each.key].id} ${path.module}/../queries/${each.value} content.sql"
+    command = "python3 ${path.module}/scripts/commit_asset.py ${google_dataform_repository.saved_query[each.key].id} - content.sql"
+    environment = {
+      ASSET_CONTENT = local.rendered_queries[each.key]
+    }
   }
 }

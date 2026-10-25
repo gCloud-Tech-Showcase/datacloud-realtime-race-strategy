@@ -1,0 +1,9 @@
+# Builds one service image with the Dockerfile in the submitted directory.
+# A build that runs as a custom service account must say where its logs go.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "$_IMAGE", "."]
+images:
+  - "$_IMAGE"
+options:
+  logging: CLOUD_LOGGING_ONLY

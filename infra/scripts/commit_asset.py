@@ -8,9 +8,13 @@ resource writes files into a Dataform repository, so `tofu apply` calls this
 script to commit the content.
 
 Usage: commit_asset.py <repository resource name> <path to source file> <target file name>
+
+A source path of "-" commits the text in the ASSET_CONTENT environment
+variable instead, for content that `tofu apply` renders from a template.
 """
 import base64
 import json
+import os
 import subprocess
 import sys
 import urllib.error
@@ -19,8 +23,12 @@ import urllib.request
 repository, path, target = sys.argv[1], sys.argv[2], sys.argv[3]
 
 token = subprocess.check_output(["gcloud", "auth", "print-access-token"], text=True).strip()
-with open(path, "rb") as f:
-    contents = base64.b64encode(f.read()).decode()
+if path == "-":
+    contents = base64.b64encode(os.environ["ASSET_CONTENT"].encode()).decode()
+    path = target
+else:
+    with open(path, "rb") as f:
+        contents = base64.b64encode(f.read()).decode()
 
 body = {
     "commitMetadata": {

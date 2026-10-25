@@ -1,0 +1,2 @@
+google-cloud-pubsub>=2.27.0
+google-cloud-storage>=2.19.0

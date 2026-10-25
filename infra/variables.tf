@@ -57,3 +57,29 @@ variable "replay_window_end" {
     error_message = "replay_window_end must look like 2025-03-16T05:08:45 (UTC, no zone suffix)."
   }
 }
+
+variable "replay_speed" {
+  description = "How many times faster than real time the replayer publishes the window"
+  type        = string
+  default     = "5"
+
+  validation {
+    condition     = can(tonumber(var.replay_speed)) && tonumber(var.replay_speed) > 0
+    error_message = "replay_speed must be a positive number, for example 5."
+  }
+}
+
+# Moment rules in queries/03b-moments-windowed.sql. TUMBLE windows close on
+# arrival time in BigQuery, so at replay_speed 5 a 30-second window covers
+# 2.5 minutes of racing.
+variable "window_seconds" {
+  description = "TUMBLE window, in seconds of arrival time, for the rain and gap-closing rules"
+  type        = number
+  default     = 30
+}
+
+variable "gap_closing_seconds" {
+  description = "How many seconds the gap to the car ahead must shrink within one window to flag GAP_CLOSING"
+  type        = number
+  default     = 1
+}
