@@ -19,7 +19,9 @@ cd infra && tofu apply     # zero required variables
 stage. Stated rather than left to be inferred, per `rules/tofu.md`.
 
 `tofu apply` enables APIs, creates the datasets, runner SA and IAM, stands up
-the Dataform repo, then triggers one pipeline run and blocks until it finishes.
+the Dataform repo, deploys `notebooks/*.ipynb` and `queries/*.sql` to BigQuery
+Studio, then
+triggers one pipeline run and blocks until it finishes.
 `setup.sh` covers what can't run inside the graph — and on a private repo that
 includes issuing Dataform's SSH deploy key, so the key never enters state.
 
@@ -67,6 +69,26 @@ SELECT * FROM `assertions.<assertion_name>`;   -- must be empty
   `tofu destroy` orphans it, unlabeled and untracked.
 - **Gemini 3.x is global-endpoint only** and needs the full publisher URL; the
   bare model slug is rejected.
+- **Each reader-facing script has a notebook twin.** `infra/scripts/run_pipeline.sh`
+  pairs with `notebooks/run-pipeline.ipynb`, and a step guide `docs/01-x.md`
+  pairs with `notebooks/01-x.ipynb`. Keep the same steps in the same order, and
+  change both in the same commit. A notebook in BigQuery Studio is a single
+  file with no checkout of this repo, so it cannot read the repo's SQL or scripts.
+- **Each SQL block in the guide has a saved query.** `queries/<NN>-<name>.sql`
+  matches the block in step NN (`00` for checks, `99` for reset). Its first line
+  is `-- <display name>`, which becomes the name in BigQuery Studio. Change the
+  guide and the file in the same commit.
+- **Editing a notebook or saved query means editing the file and running `tofu apply`.**
+  The commit step reruns when the file hash changes and replaces the asset in
+  BigQuery Studio, including any edits made in the console.
+- **The runtime template has Secure Boot and no fixed ID.** Secure Boot satisfies
+  `constraints/compute.requireShieldedVm`. A deleted template's ID stays
+  reserved, so a fixed `name` makes every replacement fail with a 409.
+- **Notebook runtimes have no public IP and no internet access.** Google APIs
+  work through Private Google Access. `pip install` from PyPI does not, so
+  notebooks use only preinstalled packages.
+- **Run `pre-commit install` once per clone.** It strips notebook outputs on
+  commit (`nbstripout`).
 - **Non-interactive shells don't load `.envrc`**, so pass `--project` to
   `bq`/`gcloud` rather than trusting the ambient project.
 

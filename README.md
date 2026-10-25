@@ -31,7 +31,8 @@ Standalone and self-contained — clone it, point it at your own GCP project, an
    Tofu uses the application default credentials. `bq`, `gcloud` and the
    scripts use the CLI login.
 2. **[OpenTofu](https://opentofu.org) 1.6 or later** (`tofu`). `setup.sh` runs `tofu init`.
-3. `curl`, `python3`, `gsutil` — all ship with `gcloud`.
+3. `curl`, `python3`, `gsutil` — all ship with `gcloud`. The apply also deploys
+   the notebooks and saved queries with a small Python script.
 
 No GitHub token is needed: the Dataform repository pulls over an *anonymous* git link, which works because this repo is public.
 
@@ -66,6 +67,15 @@ SELECT * FROM `assertions.<assertion>`;   -- empty = healthy
 <!-- Link to the step-by-step guide in docs/01-<topic>.md, with one sentence
      on what the reader does there. -->
 
+Each script you run by hand has a notebook twin under **BigQuery Studio >
+Notebooks**, deployed by `tofu apply` from `notebooks/*.ipynb`. When a notebook
+asks for a runtime, select **Runtime > Connect to a runtime > Create new
+runtime** and choose the **F1 Pit Wall: Real-Time Race Strategy notebooks** template.
+
+Each query in the guide is also a saved query under **BigQuery Studio >
+Queries**, deployed from `queries/*.sql` and numbered like the guide, so you can
+open and run it without copying SQL.
+
 ## What gets created
 
 | Resource | Notes |
@@ -74,6 +84,10 @@ SELECT * FROM `assertions.<assertion>`;   -- empty = healthy
 | Dataform repository | git-linked anonymously, pulls from `main` |
 | Runner service account | workflow invocations execute as it |
 | First-run trigger | `run_pipeline_on_apply` builds everything at the end of apply |
+| Notebooks (`Run Pipeline`, ...) | Under **BigQuery Studio > Notebooks**, one per `notebooks/*.ipynb` |
+| Saved queries (`01 Example: top words`, ...) | Under **BigQuery Studio > Queries**, one per `queries/*.sql` |
+| Runtime template `F1 Pit Wall: Real-Time Race Strategy notebooks` | Colab Enterprise runtime for the notebooks, on the `notebooks` network with no public IP. It stops after 1 hour idle. |
+| Network `notebooks`, subnet `notebooks-<region>` | Private Google Access, so the runtime reaches Google APIs without a public IP |
 
 ## Data quality
 

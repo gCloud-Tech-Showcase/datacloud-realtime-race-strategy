@@ -12,7 +12,15 @@
 
      Add 5 or 6 console screenshots in docs/images/ at the moments that
      matter, cropped and with a dated caption. The text must stand without
-     them. -->
+     them.
+
+     Add a notebook twin as notebooks/01-<topic>.ipynb with the same steps
+     in the same order, and say near the top that the reader can follow it
+     under BigQuery Studio > Notebooks instead.
+
+     Give every SQL block a saved query in queries/<NN>-<name>.sql, with
+     "-- <NN> <Topic>: <what it shows>" as its first line, and name the
+     saved query next to the block. -->
 
 One sentence on what the reader does in this guide.
 

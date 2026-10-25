@@ -26,6 +26,11 @@ resource "google_project_service" "apis" {
     # and for any Gemini call from BigQuery. Keep unless the domain is pure SQL.
     "aiplatform.googleapis.com",
 
+    # BigQuery Studio notebooks (notebooks.tf, notebook_runtime.tf). Without
+    # these the console shows an Enable APIs prompt on every notebook.
+    "compute.googleapis.com",          # Colab Enterprise runtime and its network
+    "cloudaicompanion.googleapis.com", # Gemini in BigQuery, including the notebook assistant
+
 
     "bigqueryconnection.googleapis.com", # [addon:unstructured] BQ -> Vertex/GCS connection
     "storage.googleapis.com",            # [addon:unstructured] bucket backing the object table

@@ -11,7 +11,21 @@ Copy-paste commands and queries, with sample output. Run them from the repositor
 
 ---
 
-## 1. Row counts
+## 1. Rerun the pipeline
+
+The first `tofu apply` runs the pipeline once. To run it again, open the **Run Pipeline** notebook in BigQuery Studio and run all cells, or run the script:
+
+```bash
+cd infra
+PROJECT=$(tofu output -raw project_id) REGION=us-central1 \
+REPO=$(tofu output -raw dataform_repository_name) \
+RUNNER_SA="dataform-runner@$(tofu output -raw project_id).iam.gserviceaccount.com" \
+  bash scripts/run_pipeline.sh
+```
+
+---
+
+## 2. Row counts
 
 ```sql
 SELECT COUNT(*) FROM `serving.<table>`;
@@ -19,7 +33,7 @@ SELECT COUNT(*) FROM `serving.<table>`;
 
 ---
 
-## 2. Data quality
+## 3. Data quality
 
 Both must return no rows:
 
@@ -29,7 +43,7 @@ SELECT * FROM `assertions.<assertion_name>`;
 
 ---
 
-## 3. Monitoring
+## 4. Monitoring
 
 Rows here are expected. Watch the trend:
 
