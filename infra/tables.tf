@@ -79,6 +79,7 @@ resource "google_bigquery_table" "calls" {
     { name = "run_id", type = "STRING", mode = "NULLABLE", description = "One replay of the race" },
     { name = "moment_message_id", type = "STRING", mode = "NULLABLE", description = "Pub/Sub message ID of the moment" },
     { name = "moment", type = "STRING", mode = "NULLABLE", description = "The moment the call answers" },
+    { name = "driver_number", type = "INT64", mode = "NULLABLE", description = "Car number of the moment, empty for race-wide moments" },
     { name = "lap", type = "INT64", mode = "NULLABLE", description = "Race lap of the moment" },
     { name = "event_ts", type = "TIMESTAMP", mode = "NULLABLE", description = "Race time of the moment" },
     { name = "status", type = "STRING", mode = "NULLABLE", description = "OK, or FAILED when Gemini returned an error" },
