@@ -90,7 +90,10 @@ def make_call(moment: dict) -> tuple[int | None, str, str | None]:
     row = next(iter(job.result()))
     call = row["call"] or {}
     status = call.get("status") or ""
-    return row["race_lap"], call.get("result") or "", status or None
+    text = call.get("result") or ""
+    if not status and not text:
+        status = "Gemini returned no text"
+    return row["race_lap"], text, status or None
 
 
 @app.post("/")

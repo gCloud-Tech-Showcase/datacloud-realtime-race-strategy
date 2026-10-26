@@ -100,10 +100,12 @@ SELECT
       '- If no car should change plan, say so in one line.\n',
       '</constraints>\n',
       '<context>\n',
-      'Race: 57 laps. Current lap: ', CAST(race_lap AS STRING), '. Track: ',
+      'Race: 57 laps. Current lap: ', IFNULL(CAST(race_lap AS STRING), 'unknown'), '. Track: ',
       IF(raining = 1, 'raining', 'dry'), '.\n',
       'Field (position, driver, gap to leader, interval to car ahead, tyre compound, tyre age, last 3 lap times in seconds):\n',
-      field_text, '\n',
+      -- Before a replay there are no cars, and a NULL here would make the
+      -- whole prompt NULL.
+      IFNULL(field_text, 'No cars recorded yet.'), '\n',
       '</context>\n',
       '<task>Based on the information above, the moment is: ', moment_name,
       IFNULL(CONCAT(' for ', (SELECT code FROM drivers WHERE driver_number = moment_driver),
