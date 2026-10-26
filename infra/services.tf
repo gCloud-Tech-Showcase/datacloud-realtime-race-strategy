@@ -36,6 +36,34 @@ resource "google_artifact_registry_repository" "services" {
   depends_on = [time_sleep.api_propagation]
 }
 
+# Cloud Build stages the submitted source here. Without it, the first build in
+# a project creates <project>_<region>_cloudbuild itself, and builds started in
+# parallel fail with "The specified bucket does not exist" (seen on a fresh
+# project on 2026-10-26).
+resource "google_storage_bucket" "build_staging" {
+  name                        = "${var.project_id}-build-staging"
+  location                    = var.region
+  uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+  force_destroy               = true
+
+  lifecycle_rule {
+    condition {
+      age = 7
+    }
+    action {
+      type = "Delete"
+    }
+  }
+
+  labels = {
+    project = "datacloud-realtime-race-strategy"
+    domain  = "pitwall"
+  }
+
+  depends_on = [time_sleep.api_propagation]
+}
+
 resource "google_service_account" "service_builder" {
   account_id   = "service-builder"
   display_name = "Cloud Build identity for the service images"
@@ -47,6 +75,12 @@ resource "google_project_iam_member" "service_builder" {
   project = var.project_id
   role    = "roles/cloudbuild.builds.builder"
   member  = google_service_account.service_builder.member
+}
+
+resource "google_storage_bucket_iam_member" "service_builder_staging_reader" {
+  bucket = google_storage_bucket.build_staging.name
+  role   = "roles/storage.objectViewer"
+  member = google_service_account.service_builder.member
 }
 
 resource "google_artifact_registry_repository_iam_member" "service_builder_writer" {
@@ -63,6 +97,7 @@ resource "time_sleep" "wait_builder_iam" {
   depends_on = [
     google_project_iam_member.service_builder,
     google_artifact_registry_repository_iam_member.service_builder_writer,
+    google_storage_bucket_iam_member.service_builder_staging_reader,
   ]
 }
 
@@ -79,7 +114,7 @@ resource "terraform_data" "service_image" {
       "--config=${path.module}/scripts/cloudbuild.yaml",
       "--substitutions=_IMAGE=${local.service_image[each.key]}",
       "--service-account=${google_service_account.service_builder.id}",
-      "--default-buckets-behavior=regional-user-owned-bucket",
+      "--gcs-source-staging-dir=gs://${google_storage_bucket.build_staging.name}/source",
       "--quiet",
     ])
   }

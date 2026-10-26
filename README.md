@@ -104,6 +104,7 @@ Everything regional is in `us-central1`. BigQuery is in the `US` multi-region.
 | Notebooks `01 Race Strategy`, `Verify` | Under **BigQuery Studio > Notebooks**, one per `notebooks/*.ipynb` |
 | Runtime template `F1 Pit Wall: Real-Time Race Strategy notebooks` | Colab Enterprise runtime for the notebooks, on the `notebooks` network with no public IP. It stops after 1 hour idle. |
 | Artifact Registry repository `services` | The three container images |
+| Bucket `<project>-build-staging` | Cloud Build's copy of the submitted source. Objects expire after 7 days. |
 | Service accounts | `replayer`, `strategist`, `pitwall`, `cq-runner`, `moments-push`, `service-builder` |
 
 ## Known limitations
@@ -127,6 +128,5 @@ These stay after `tofu destroy`:
 | `gs://<project>-tfstate` | It holds the state that `destroy` uses | `gcloud storage rm -r "gs://$PROJECT_ID-tfstate"` |
 | `infra/viewer.auto.tfvars` | `setup.sh` wrote it on your machine | `rm infra/viewer.auto.tfvars` |
 | Enabled APIs | Tofu leaves them on so that a shared project does not break | `gcloud services disable`, if you want |
-| `gs://<project>_us-central1_cloudbuild` | Cloud Build created it for the image builds | `gcloud storage rm -r "gs://${PROJECT_ID}_us-central1_cloudbuild"` |
 
 Deleting the project removes all of them.
