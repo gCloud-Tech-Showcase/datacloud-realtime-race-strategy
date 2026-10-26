@@ -96,7 +96,7 @@ $("start").onclick = async () => {
     const { run_id } = await post("/api/start");
     Object.assign(state, { runId: run_id, jobIds: [], seenMoments: new Set(), seenCalls: new Set() });
     save();
-    status(`Replay ${run_id} starting. The replayer job needs about 90 seconds before the first event.`);
+    status(`Replay ${run_id} starting. The replayer job needs up to 4 minutes before the first event, longest on the first run in a new project.`);
   } catch (e) {
     status(`Could not start: ${e.message}`);
   }

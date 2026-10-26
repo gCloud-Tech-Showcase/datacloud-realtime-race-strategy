@@ -148,7 +148,7 @@ A gap closing from the windowed rules:
 | `AI.GENERATE` `model_params` | Matches the `GenerateContent` request body | `"thinkingLevel": "low"` is rejected, `"LOW"` works | 2026-10-25 |
 | `gemini-2.5-flash` | | No longer served for a new project | 2026-10-25 |
 | OpenF1 during a live F1 session | Real-time data needs a paid key | Historical requests also return 401 | 2026-10-25 |
-| Replayer start | | 20 seconds to 2.5 minutes from run to first event | 2026-10-25 |
+| Replayer start | | 20 seconds to 4 minutes from run to first event, slowest on the first run in a new project | 2026-10-26 |
 
 ## Navigation
 
