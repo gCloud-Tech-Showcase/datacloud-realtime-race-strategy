@@ -30,10 +30,13 @@ WITH expected AS (
 
 flagged AS (
   -- A moment can be flagged twice after a continuous query restarts, so count
-  -- each moment once.
+  -- each moment once. Only moments within the race count: the smoke test in
+  -- scripts/verify.sh publishes a moment stamped with today's date.
   SELECT moment, COUNT(DISTINCT TO_JSON_STRING(STRUCT(driver_number, event_ts))) AS n
   FROM `${project_id}.serving.moments`
   WHERE run_id = target_run
+    AND event_ts <= (
+      SELECT MAX(event_ts) FROM `${project_id}.raw.raw_events` WHERE run_id = target_run)
   GROUP BY moment
 )
 

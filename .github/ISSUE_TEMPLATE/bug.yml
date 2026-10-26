@@ -1,13 +1,13 @@
 name: Bug
-description: Something is broken — a Dataform run failing, an apply blowing up, a query erroring.
+description: Something is broken, such as an apply failing, a replay not starting or a query erroring.
 title: "[Bug] "
 labels: ["type:bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        For data that looks wrong while the pipeline runs fine, use the
-        data-quality template instead — this one is for things that actually fail.
+        For data that looks wrong while the replay runs fine, use the
+        data-quality template instead. This one is for things that actually fail.
   - type: textarea
     id: what_happened
     attributes:

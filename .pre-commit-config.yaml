@@ -1,0 +1,8 @@
+# Strip notebook outputs and execution counts before each commit, so a
+# notebook diff shows the code that changed, not megabytes of rendered output.
+# Install once per clone: pre-commit install
+repos:
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.8.1
+    hooks:
+      - id: nbstripout

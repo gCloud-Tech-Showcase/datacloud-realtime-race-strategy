@@ -1,5 +1,5 @@
 name: Data quality
-description: Data that's wrong, missing, or inconsistent while the pipeline itself runs fine.
+description: Data that's wrong, missing, or inconsistent while the replay itself runs fine, such as a missed or duplicate moment.
 title: "[Data quality] "
 labels: ["type:data-quality"]
 body:
@@ -28,9 +28,9 @@ body:
     attributes:
       label: Is there a check for this?
       options:
-        - "No — nothing would catch it"
-        - "Yes — an assertion exists and passed anyway"
-        - "Yes — a monitoring view shows it"
+        - "No, nothing would catch it"
+        - "Yes, the 05 Proof saved query returned ok = true anyway"
+        - "Yes, the 03c Moments saved query shows it"
         - "Not sure"
     validations:
       required: false

@@ -1,109 +1,95 @@
 # datacloud-realtime-race-strategy
 
-<!-- SKELETON: the structure below is the convention; replace the content.
-     Keep this operational — how to stand the domain up, what the tables are,
-     how to verify, and the traps specific to THIS pipeline. Engineering
-     standards do not belong here; they live in the user-level agent toolkit. -->
-
-Standalone domain: F1 Pit Wall: Real-Time Race Strategy. <!-- one or two lines: what it does,
-which Google Cloud products, and where the data comes from. -->
+Standalone demo: F1 Pit Wall with Real-Time Race Strategy. A Cloud Run job replays laps 30 to 50 of the 2025 Australian Grand Prix from OpenF1 to Pub/Sub. A BigQuery subscription lands every event in `raw.raw_events`. Two continuous queries publish race moments to Pub/Sub. A Cloud Run strategist answers each safety car, rain start and gap closing with a Gemini call from `AI.GENERATE`, and a private Cloud Run pit wall shows it all.
 
 ## Standing it up
 
 ```bash
-./infra/scripts/setup.sh   # APIs + versioned state bucket + tofu init
+./infra/scripts/setup.sh   # APIs, versioned state bucket, pit wall viewer, tofu init
 cd infra && tofu apply     # zero required variables
+./scripts/verify.sh --expect READY
 ```
 
-**Tofu layout: flat** — everything in `infra/*.tf`, one apply, no `bootstrap/`
-stage. Stated rather than left to be inferred, per `rules/tofu.md`.
+**Tofu layout: flat.** Everything is in `infra/*.tf`, with one apply and no `bootstrap/` stage.
 
-`tofu apply` enables APIs, creates the datasets, runner SA and IAM, stands up
-the Dataform repo, deploys `notebooks/*.ipynb` and `queries/*.sql` to BigQuery
-Studio, then
-triggers one pipeline run and blocks until it finishes.
-`setup.sh` covers what can't run inside the graph — and on a private repo that
-includes issuing Dataform's SSH deploy key, so the key never enters state.
+**No Dataform pipeline.** This is the event-driven variant of the domain template. The Dataform API stays, because BigQuery Studio notebooks and saved queries are Dataform repositories.
 
-Deploying elsewhere: change `project_id`'s default in `infra/variables.tf` —
-that single value drives the provider, the resources, the derived bucket names
-and the state bucket. Don't hardcode it anywhere else.
+**One project ID.** `project_id`'s default in `infra/variables.tf` drives the providers, the resources, the bucket names and `setup.sh`. Never hardcode it in `.tf` files or scripts. In commands, use a `PROJECT_ID` shell variable. In `queries/*.sql`, use `${project_id}`, which the apply fills in.
+
+**Times are UTC.** Race times (`event_ts`) are 2025-03-16. Publish times are when the replay ran.
+
+## Words
+
+Use these terms consistently in code, docs and commit messages.
+
+| Term | Meaning |
+| --- | --- |
+| reader | The person who runs the demo in their own project |
+| replay | One run of the `replayer` job, identified by `run_id` |
+| race event | One OpenF1 record, published to `race-events` and landed in `raw.raw_events` |
+| race time | `event_ts`: when the record became known during the race |
+| window | The replayed part of the race, laps 30 to 50 (`replay_window_start`, `replay_window_end`) |
+| moment | A row in `serving.moments`: `SAFETY_CAR`, `PIT_STOP`, `RAIN_STARTED` or `GAP_CLOSING` |
+| fast rules | `queries/03a-moments-fast.sql`: moments from one event |
+| windowed rules | `queries/03b-moments-windowed.sql`: moments from a `TUMBLE` window |
+| call | A row in `serving.calls`: Gemini's answer to one moment |
+| strategist | The Cloud Run service that makes the calls |
+| pit wall | The Cloud Run web app the reader opens |
 
 ## Data model
 
-Datasets are named for the **medallion stage**; the domain (`race_strategy`)
-is a Dataform tag, never a dataset or a table prefix.
+The full resource list is in [`README.md`](README.md#what-gets-created).
 
 | Dataset | Object | What |
 | --- | --- | --- |
-| `raw` | | <!-- landed source data, or delete this row --> |
-| `processed` | | <!-- cleansed / typed --> |
-| `serving` | | <!-- marts, models, predictions --> |
-| `assertions` | | hard-fail checks; rows returned = failed run |
-| `assertions` | | warning views; non-empty is expected |
+| `raw` | `raw_events` | Every race event, written by the `race-events-bq` subscription (`infra/tables.tf`) |
+| `serving` | `moments` | Every moment, written by the `race-moments-bq` subscription. A moment can appear twice after a continuous query restarts. |
+| `serving` | `calls` | One row per answered moment, written by the strategist. `status` is `OK` or `FAILED`. |
 
-`definitions/` mirrors this: `sources/`, `raw/`, `processed/`, `serving/`,
-`assertions/`, `monitoring/`.
+The services are in `services/<name>/`, each with a `Dockerfile`. `infra/services.tf` builds them in Cloud Build, tagged with a hash of the source.
 
 ## Verifying
 
-```sql
--- replace with the queries that prove THIS domain works
-SELECT * FROM `assertions.<assertion_name>`;   -- must be empty
+```bash
+cd infra && tofu fmt -recursive && tofu validate && tofu plan
+ruff format --line-length 100 services/ notebooks/ infra/scripts/ && ruff check --line-length 100 services/ notebooks/ infra/scripts/
+bash -n scripts/*.sh infra/scripts/*.sh
 ```
 
-<!-- Include the check that proves the domain is actually working, not just
-     running. For a model that means the predictions stratify; for an
-     enrichment it means the output distribution is sane. A green pipeline
-     is not the same as a correct one. -->
+There are no unit tests. After an apply:
+
+```bash
+./scripts/verify.sh --expect READY   # every resource exists and is ready
+./scripts/verify.sh --smoke          # a test moment gets a call (one Gemini request)
+```
+
+After a full replay, the saved query `05 Proof: flagged moments against the race` must return `ok = true` on every row.
 
 ## Gotchas
 
-<!-- Only traps specific to this pipeline. Some that recur across domains: -->
+Each line is a guardrail. The reasons are in comments next to the code. The observed behaviour behind them is in [`docs/architecture.md`](docs/architecture.md#observed-behaviour).
 
-- **Incremental tables don't retroactively change existing rows.** Editing the
-  SELECT only affects new rows; a full refresh re-pays for every model call.
-  For a small correction, converge existing rows with a targeted `UPDATE`.
-- **Adding a stage in `definitions/` means adding it to `infra/datasets.tf`.**
-  Dataform auto-creates a missing dataset, so it silently works — then
-  `tofu destroy` orphans it, unlabeled and untracked.
-- **Gemini 3.x is global-endpoint only** and needs the full publisher URL; the
-  bare model slug is rejected.
-- **Each reader-facing script has a notebook twin.** `infra/scripts/run_pipeline.sh`
-  pairs with `notebooks/run-pipeline.ipynb`, and a step guide `docs/01-x.md`
-  pairs with `notebooks/01-x.ipynb`. Keep the same steps in the same order, and
-  change both in the same commit. A notebook in BigQuery Studio is a single
-  file with no checkout of this repo, so it cannot read the repo's SQL or scripts.
-- **Each SQL block in the guide has a saved query.** `queries/<NN>-<name>.sql`
-  matches the block in step NN (`00` for checks, `99` for reset). Its first line
-  is `-- <display name>`, which becomes the name in BigQuery Studio. Change the
-  guide and the file in the same commit.
-- **Editing a notebook or saved query means editing the file and running `tofu apply`.**
-  The commit step reruns when the file hash changes and replaces the asset in
-  BigQuery Studio, including any edits made in the console.
-- **The runtime template has Secure Boot and no fixed ID.** Secure Boot satisfies
-  `constraints/compute.requireShieldedVm`. A deleted template's ID stays
-  reserved, so a fixed `name` makes every replacement fail with a 409.
-- **Notebook runtimes have no public IP and no internet access.** Google APIs
-  work through Private Google Access. `pip install` from PyPI does not, so
-  notebooks use only preinstalled packages.
-- **Run `pre-commit install` once per clone.** It strips notebook outputs on
-  commit (`nbstripout`).
-- **Non-interactive shells don't load `.envrc`**, so pass `--project` to
-  `bq`/`gcloud` rather than trusting the ambient project.
+- **Start continuous queries only while events are landing,** and start them 10 minutes back (`CURRENT_TIMESTAMP() - INTERVAL 10 MINUTE`). On an idle table, or with a shorter lookback, they fail with "Invalid timestamp bounds".
+- **Never join two `TUMBLE` aggregations with `UNION ALL`** in one continuous query. It emits nothing.
+- **Send `payload` as a JSON string,** never a nested object. The BigQuery subscription rejects an object for a `JSON` column, and the message goes to `race-events-dead-letter`.
+- **Never publish a record before it was known.** A lap publishes when it ends, and a stint without `lap_end`. The replayer adds `previous_rainfall` to weather records.
+- **Answer each moment once.** Pub/Sub redelivers, and the 10-minute lookback can flag a moment twice. The strategist checks `serving.calls` first and runs one request at a time.
+- **Keep the strategist's variables marker** (`-- (the strategist service sets the five variables here)`) in `queries/04-strategist-call.sql`. The service inserts its `SET` statements there.
+- **Write `thinkingLevel` in uppercase** in `model_params` (`"LOW"`). Lowercase is rejected.
+- **Each query in a guide has a saved query.** `queries/<NN>-<name>.sql` matches the block in step NN (`00` for checks, `99` for stop). Its first line is `-- <display name>`. Change the guide and the file in the same commit.
+- **Each reader-facing script and step guide has a notebook twin.** `scripts/verify.sh` pairs with `notebooks/verify.ipynb`, and `docs/01-race-strategy.md` with `notebooks/01-race-strategy.ipynb`. The notebooks copy the SQL of the saved queries, because a notebook cannot read the repo. Change all three in the same commit.
+- **Keep the guide's line numbers in step with the files.** `docs/01-race-strategy.md` and `README.md` point at lines in `infra/variables.tf`, `infra/strategist.tf` and `queries/03a-moments-fast.sql`.
+- **Record the retirement date next to the Gemini model ID** in `queries/04-strategist-call.sql`. The migration is tracked in [#2](https://github.com/gCloud-Tech-Showcase/datacloud-realtime-race-strategy/issues/2).
 
 ## Teardown
 
 ```bash
+# Stop the continuous queries first: the pit wall's Stop button, or the saved query 99 Stop.
 cd infra && tofu destroy
 ```
 
-Removes the domain including dataset contents. Deliberately **not** removed,
-because Tofu didn't create them: the project and the state bucket
-(`gs://datacloud-pitwall-tfstate`) — destroying the bucket holding the state
-mid-destroy would be self-defeating.
-
 ## More
 
-`README.md` for the human-facing walkthrough, `docs/` for architecture and
-query guides.
+- [`README.md`](README.md): what the demo does and how to run it
+- [`docs/01-race-strategy.md`](docs/01-race-strategy.md): the step-by-step guide
+- [`docs/architecture.md`](docs/architecture.md): wiring, message formats and observed behaviour

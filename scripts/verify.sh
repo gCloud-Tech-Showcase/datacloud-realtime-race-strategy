@@ -58,13 +58,11 @@ expect_ready() {
 }
 
 smoke() {
-  local run_id="smoke-$(date +%s)"
-  echo "Publishing a test SAFETY_CAR moment for run ${run_id}"
   # The strategist answers from the replayed field, so the test moment borrows
-  # the latest replay's events through its run_id when one exists.
-  local field_run
-  field_run="$(bq_value "SELECT IFNULL((SELECT run_id FROM \`${PROJECT}.raw.raw_events\` WHERE event_type = 'drivers' ORDER BY publish_time DESC LIMIT 1), '${run_id}')")"
-  [[ "$field_run" != "$run_id" ]] && run_id="$field_run"
+  # the latest replay's run_id when there is one.
+  local run_id
+  run_id="$(bq_value "SELECT IFNULL((SELECT run_id FROM \`${PROJECT}.raw.raw_events\` WHERE event_type = 'drivers' ORDER BY publish_time DESC LIMIT 1), 'smoke-$(date +%s)')")"
+  echo "Publishing a test SAFETY_CAR moment for run ${run_id}"
   gcloud pubsub topics publish race-moments --project="$PROJECT" --message="$(cat <<EOF
 {"run_id":"${run_id}","moment":"SAFETY_CAR","driver_number":null,"lap":0,"event_ts":"$(date -u +%Y-%m-%dT%H:%M:%SZ)","detail":"smoke test"}
 EOF

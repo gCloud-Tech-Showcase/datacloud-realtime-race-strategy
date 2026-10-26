@@ -22,9 +22,15 @@ resource "google_project_service" "apis" {
     "iam.googleapis.com",
     "iamcredentials.googleapis.com", # service-account impersonation
 
-    # BigQuery Studio saved queries are stored as Dataform repositories
-    # (saved_queries.tf). There is no Dataform pipeline in this demo.
+    # BigQuery Studio notebooks and saved queries are stored as Dataform
+    # repositories (notebooks.tf, saved_queries.tf). There is no Dataform
+    # pipeline in this demo.
     "dataform.googleapis.com",
+
+    # BigQuery Studio notebooks (notebooks.tf, notebook_runtime.tf). Without
+    # these the console shows an Enable APIs prompt on every notebook.
+    "compute.googleapis.com",          # Colab Enterprise runtime and its network
+    "cloudaicompanion.googleapis.com", # Gemini in BigQuery, including the notebook assistant
   ])
 
   service = each.value
