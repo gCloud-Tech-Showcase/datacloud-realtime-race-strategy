@@ -2,6 +2,7 @@
 
 Serves one page and a JSON API:
   GET  /api/state?run_id=...      timing tower, moments, calls and race clock
+  GET  /api/latest                the latest run_id in raw_events, if any
   POST /api/start                 runs the replayer job with a new run_id
   POST /api/queries/start         starts both continuous queries
   POST /api/queries/stop          cancels the continuous queries it started
@@ -12,8 +13,10 @@ replay has written its first events: a continuous query started on an idle
 table fails with "Invalid timestamp bounds".
 """
 
+import json
 import logging
 import os
+import pathlib
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 
@@ -30,6 +33,8 @@ REGION = os.environ["REGION"]
 LOCATION = os.environ["BQ_LOCATION"]
 REPLAYER_JOB = os.environ["REPLAYER_JOB"]
 CQ_SERVICE_ACCOUNT = os.environ["CQ_SERVICE_ACCOUNT"]
+REPLAY_WINDOW_END = os.environ["REPLAY_WINDOW_END"]
+REPLAY_SPEED = os.environ["REPLAY_SPEED"]
 CONTINUOUS_QUERIES = {
     "moments-fast": os.environ["MOMENTS_FAST_SQL"],
     "moments-windowed": os.environ["MOMENTS_WINDOWED_SQL"],
@@ -64,6 +69,8 @@ WITH ev AS (
 drivers AS (
   SELECT driver_number,
     ANY_VALUE(JSON_VALUE(payload, '$.name_acronym')) AS code,
+    ANY_VALUE(JSON_VALUE(payload, '$.full_name')) AS full_name,
+    ANY_VALUE(JSON_VALUE(payload, '$.team_name')) AS team_name,
     ANY_VALUE(JSON_VALUE(payload, '$.team_colour')) AS colour
   FROM ev WHERE event_type = 'drivers' GROUP BY driver_number
 ),
@@ -74,7 +81,7 @@ latest AS (
   GROUP BY event_type, driver_number
 )
 SELECT
-  d.driver_number, d.code, d.colour,
+  d.driver_number, d.code, d.full_name, d.team_name, d.colour,
   SAFE.INT64(p.payload.position) AS position,
   JSON_VALUE(i.payload, '$.gap_to_leader') AS gap_to_leader,
   JSON_VALUE(i.payload, '$.interval') AS interval_ahead,
@@ -92,12 +99,31 @@ ORDER BY position
 """
 
 MOMENTS_SQL = """
-SELECT moment, driver_number, lap, event_ts, detail, publish_time
-FROM `{project}.serving.moments`
-WHERE run_id = @run_id
-QUALIFY ROW_NUMBER() OVER (PARTITION BY moment, driver_number, event_ts ORDER BY publish_time) = 1
-ORDER BY event_ts DESC
-LIMIT 50
+WITH laps AS (
+  SELECT event_ts, SAFE.INT64(payload.lap_number) AS lap_number
+  FROM `{project}.raw.raw_events`
+  WHERE run_id = @run_id AND event_type = 'laps'
+),
+dedup AS (
+  SELECT moment, driver_number, lap, event_ts, detail, publish_time
+  FROM `{project}.serving.moments`
+  WHERE run_id = @run_id
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY moment, driver_number, event_ts ORDER BY publish_time) = 1
+  ORDER BY event_ts DESC
+  LIMIT 60
+)
+SELECT
+  m.moment,
+  m.driver_number,
+  COALESCE(
+    m.lap,
+    (SELECT MAX(l.lap_number) FROM laps AS l WHERE l.event_ts <= m.event_ts)
+  ) AS lap,
+  m.event_ts,
+  m.detail,
+  m.publish_time
+FROM dedup AS m
+ORDER BY m.event_ts DESC
 """
 
 CALLS_SQL = """
@@ -105,13 +131,21 @@ SELECT moment, driver_number, lap, event_ts, status, call_text, error, latency_m
 FROM `{project}.serving.calls`
 WHERE run_id = @run_id
 ORDER BY event_ts DESC
-LIMIT 20
+LIMIT 25
 """
 
 CLOCK_SQL = """
 SELECT COUNT(*) AS events, MAX(event_ts) AS race_time, MAX(publish_time) AS last_publish
 FROM `{project}.raw.raw_events`
 WHERE run_id = @run_id
+"""
+
+LATEST_RUN_SQL = """
+SELECT run_id
+FROM `{project}.raw.raw_events`
+WHERE event_type = 'drivers'
+ORDER BY publish_time DESC
+LIMIT 1
 """
 
 
@@ -122,9 +156,33 @@ def _jsonable(rows: list[dict]) -> list[dict]:
     ]
 
 
+def _local_overlay() -> dict:
+    path = pathlib.Path(app.static_folder) / "local" / "overlay.json"
+    if path.is_file():
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            logger.warning("could not read local overlay: %s", exc)
+    return {}
+
+
 @app.get("/")
 def index():
     return send_from_directory(app.static_folder, "index.html")
+
+
+@app.get("/api/latest")
+def latest():
+    job = bq.query(LATEST_RUN_SQL.format(project=PROJECT_ID))
+    rows = [dict(row) for row in job.result()]
+    return jsonify(
+        {
+            "run_id": rows[0]["run_id"] if rows else None,
+            "window_end": REPLAY_WINDOW_END,
+            "replay_speed": REPLAY_SPEED,
+            "overlay": _local_overlay(),
+        }
+    )
 
 
 @app.get("/api/state")
@@ -139,6 +197,7 @@ def state():
     }
     result = {name: _jsonable(future.result()) for name, future in futures.items()}
     result["clock"] = result["clock"][0]
+    result["window_end"] = REPLAY_WINDOW_END
     return jsonify(result)
 
 

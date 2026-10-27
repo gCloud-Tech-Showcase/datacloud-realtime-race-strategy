@@ -57,7 +57,7 @@ SMOKE OK
 gcloud run services proxy pitwall --region=us-central1 --project="$PROJECT_ID"
 ```
 
-Open http://localhost:8080 and press **Start race**. **Stop** cancels the continuous queries.
+Open http://localhost:8080 and press **Start race**. The page cancels the continuous queries a minute after the replay ends. **Stop queries** cancels them now.
 
 ---
 

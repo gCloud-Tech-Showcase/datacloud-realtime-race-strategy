@@ -44,7 +44,9 @@ Open http://localhost:8080 and press **Start race**.
 
 1. The page runs the `replayer` Cloud Run job with a new `run_id`. The job reads the race from the bucket and publishes it to the `race-events` topic at five times real time. It needs between 20 seconds and 4 minutes to start: the first run in a new project is the slowest (verified on 2026-10-26).
 2. When the first events land, the page starts the two continuous queries. A continuous query started on an idle table fails, so the page waits for the events.
-3. The timing tower fills with all 20 cars, their gaps and their tyres. The window is 42 minutes of racing, so at five times real time it plays for about 8.5 minutes.
+3. The timing tower fills with all 20 cars, their gaps and their tyres. The strip above it places each car by its gap to the leader. The window is 42 minutes of racing, so at five times real time it plays for about 8.5 minutes.
+4. Each safety car, rain start and gap closing appears on the right as a card. The card lists Gemini's call for each car, and whether that car really pitted around that lap. Pit stops are grouped into one line per burst.
+5. A minute after the last lap of the window, the page cancels the two continuous queries.
 
 ---
 
@@ -178,7 +180,7 @@ Every row says `ok = true`. If one says `false`, a continuous query missed a mom
 
 ## Stop
 
-The reservation bills while a continuous query runs. When the replay is over, press **Stop** on the pit wall, or run the saved query **99 Stop: cancel the continuous queries**.
+The reservation bills while a continuous query runs. The pit wall cancels both a minute after the replay ends, if the page is still open. Otherwise press **Stop queries** on the pit wall, or run the saved query **99 Stop: cancel the continuous queries**. If you started them from the notebook, cancel them from the notebook.
 
 ---
 

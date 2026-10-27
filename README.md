@@ -7,7 +7,7 @@ There is no stream processor to run and no model to train. The rules are SQL, an
 - **A real race:** laps 30 to 50 of the 2025 Australian Grand Prix from the [OpenF1](https://openf1.org) historical API, with two safety cars and the return of the rain
 - **Moments in seconds:** continuous queries flag safety cars, pit stops and rain 3 to 6 seconds after the event lands (verified on 2026-10-25)
 - **A call per moment:** Gemini answers each safety car, rain start and gap closing with the cars that should box or stay out
-- **A pit wall:** a private web app with a timing tower, the moments and the calls, and a **Start race** button
+- **A pit wall:** a private web app with a timing tower and a card for each moment with Gemini's call, a **Start race** button, and the continuous queries stopped for you when the replay ends
 
 See [`docs/`](docs/README.md) for the step-by-step guide and [`docs/quick.md`](docs/quick.md) for copy-paste commands.
 
@@ -114,7 +114,7 @@ Everything regional is in `us-central1`. BigQuery is in the `US` multi-region.
 
 ## Cleanup
 
-Press **Stop** on the pit wall first, or run the saved query **99 Stop: cancel the continuous queries**. Then:
+Stop the continuous queries first. The pit wall stops them a minute after the replay ends, if the page is still open. Otherwise press **Stop queries** on the pit wall, or run the saved query **99 Stop: cancel the continuous queries**. Then:
 
 ```bash
 cd infra && tofu destroy

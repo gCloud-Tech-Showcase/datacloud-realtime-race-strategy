@@ -25,3 +25,7 @@ crash.*.log
 # --- Python ---
 __pycache__/
 .venv/
+
+# --- Local Pit Wall overlay (co-branding, never committed) ---
+services/pitwall/static/local/
+

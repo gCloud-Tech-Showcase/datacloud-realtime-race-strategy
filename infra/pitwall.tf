@@ -95,6 +95,14 @@ resource "google_cloud_run_v2_service" "pitwall" {
         name  = "MOMENTS_WINDOWED_SQL"
         value = local.rendered_queries["03b-moments-windowed"]
       }
+      env {
+        name  = "REPLAY_WINDOW_END"
+        value = var.replay_window_end
+      }
+      env {
+        name  = "REPLAY_SPEED"
+        value = var.replay_speed
+      }
     }
   }
 

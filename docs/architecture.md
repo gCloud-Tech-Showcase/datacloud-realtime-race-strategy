@@ -60,7 +60,12 @@ sequenceDiagram
     Gemini-->>BQ: the call
     Strat->>BQ: write the call to serving.calls
     You->>BQ: poll timing, moments and calls every 2 s
+    You->>BQ: a minute after the window ends, cancel 03a and 03b
 ```
+
+The page keeps the `run_id` and the continuous query job IDs in the browser, so the service keeps no state. The window end and the replay speed come from `infra/variables.tf` through environment variables.
+
+The page also loads an optional stylesheet and banner from `services/pitwall/static/local/`, which is gitignored. Use it to brand a session without changing the repo.
 
 ## Key Components
 
@@ -71,7 +76,7 @@ sequenceDiagram
 | Fast rules | `queries/03a-moments-fast.sql` | `SAFETY_CAR`, `PIT_STOP` and `RAIN_STARTED` from one event |
 | Windowed rules | `queries/03b-moments-windowed.sql` | `GAP_CLOSING` from a `TUMBLE` window per car |
 | Strategist | `services/strategist/`, Cloud Run service `strategist` | Runs `queries/04-strategist-call.sql` for each safety car, rain start and gap closing |
-| Pit wall | `services/pitwall/`, Cloud Run service `pitwall` | Starts a replay and its continuous queries, and shows timing, moments and calls |
+| Pit wall | `services/pitwall/`, Cloud Run service `pitwall` | Starts a replay and its continuous queries, shows timing, moments and calls, and cancels the queries when the window ends |
 | Capacity | Reservation `continuous-queries` | Enterprise edition, no baseline, autoscaling to 50 slots, `CONTINUOUS` assignment |
 
 The rendered queries in `queries/` are the single source of SQL. The apply deploys them as saved queries, and passes the same text to the pit wall and the strategist.
@@ -131,6 +136,8 @@ A gap closing from the windowed rules:
 {"run_id": "run-184b04fc", "moment": "GAP_CLOSING", "driver_number": 23, "lap": null,
  "event_ts": "2025-03-16T05:17:39Z", "detail": "gap to car ahead 1.617 s -> 0.593 s"}
 ```
+
+OpenF1 interval records carry no lap, so `lap` is empty for a gap closing. The pit wall shows the latest lap completed at that race time.
 
 ## Observed behaviour
 

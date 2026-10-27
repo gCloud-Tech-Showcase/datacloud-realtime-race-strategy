@@ -3,167 +3,904 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>F1 Pit Wall</title>
+<title>F1 Pit Wall · Real-Time Race Strategy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@8..144,400;8..144,500;8..144,600;8..144,700&family=Roboto+Mono:wght@400;500;600&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0d1016; --panel: #151a23; --line: #232b38; --text: #e6e9ef; --muted: #8a94a6;
-    --accent: #e10600; --ok: #22c55e; --warn: #f59e0b; --info: #38bdf8;
+    --bg: #121317;
+    --panel: #191B20;
+    --panel-alt: #212226;
+    --line: #2C2E35;
+    --text: #FFFFFF;
+    --text-sec: #B8BDC6;
+    --muted: #8A9099;
+    --blue: #3186FF;
+    --red: #FC413D;
+    --yellow: #FEC700;
+    --green: #00AF57;
+    --font-sans: "Google Sans Flex", "Roboto", system-ui, -apple-system, sans-serif;
+    --font-mono: "Roboto Mono", ui-monospace, monospace;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif; }
-  header { display: flex; align-items: center; gap: 24px; padding: 14px 20px; border-bottom: 1px solid var(--line); }
-  h1 { font-size: 18px; margin: 0; letter-spacing: .5px; }
-  h1 span { color: var(--accent); }
-  .clock { display: flex; gap: 20px; color: var(--muted); }
-  .clock b { color: var(--text); font-variant-numeric: tabular-nums; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 13px/1.45 var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* --- Top Header & Hero Metrics (Single Bar) --- */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 10px 20px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    flex-wrap: wrap;
+  }
+  .brand { display: flex; flex-direction: column; gap: 2px; min-width: 195px; }
+  h1 { font-size: 17px; font-weight: 600; margin: 0; letter-spacing: 0.2px; display: flex; align-items: center; gap: 8px; }
+  .f1-tag {
+    background: var(--red); color: #fff; font-size: 11px; font-weight: 700;
+    padding: 2px 6px; border-radius: 4px; letter-spacing: 0.5px;
+  }
+  .subtitle { font-size: 11px; color: var(--muted); }
+  #local-banner {
+    display: none; font-size: 11px; font-weight: 500; color: var(--blue);
+    background: rgba(49, 134, 255, 0.12); border: 1px solid rgba(49, 134, 255, 0.35);
+    padding: 3px 10px; border-radius: 999px;
+  }
+
+  .metrics { display: flex; align-items: stretch; gap: 10px; }
+  .metric-card {
+    background: var(--panel-alt);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 5px 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 110px;
+  }
+  .metric-card.hero {
+    border-color: rgba(49, 134, 255, 0.45);
+    background: linear-gradient(180deg, rgba(49, 134, 255, 0.10), rgba(25, 27, 32, 0.9));
+    min-width: 175px;
+  }
+  .metric-label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted);
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  }
+  .metric-val {
+    font: 600 18px/1.2 var(--font-mono);
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    margin-top: 2px;
+  }
+  .metric-card.hero .metric-val { font-size: 20px; color: #fff; }
+  .metric-sub { font: 400 11px/1.2 var(--font-mono); color: var(--blue); }
+
+  .state-cluster { display: flex; align-items: center; gap: 10px; }
+  .phase-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 11px; border-radius: 999px; font-size: 11px; font-weight: 600;
+    letter-spacing: 0.4px; text-transform: uppercase;
+    background: var(--panel-alt); border: 1px solid var(--line); color: var(--muted);
+  }
+  .phase-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+  .phase-pill.starting { color: var(--yellow); border-color: rgba(254, 199, 0, 0.4); }
+  .phase-pill.starting .phase-dot { background: var(--yellow); animation: pulse 1.2s infinite; }
+  .phase-pill.live { color: var(--green); border-color: rgba(0, 175, 87, 0.45); }
+  .phase-pill.live .phase-dot { background: var(--green); animation: pulse 1.2s infinite; }
+  .phase-pill.finished { color: var(--blue); border-color: rgba(49, 134, 255, 0.45); }
+  .phase-pill.finished .phase-dot { background: var(--blue); }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  #run-badge { font: 400 11px/1 var(--font-mono); color: var(--muted); }
+  #transient-note { font-size: 11px; color: var(--muted); max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
   .spacer { flex: 1; }
-  button { background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 8px 16px; font-weight: 600; cursor: pointer; }
-  button.secondary { background: var(--line); }
-  button:disabled { opacity: .4; cursor: default; }
-  #status { padding: 8px 20px; color: var(--muted); border-bottom: 1px solid var(--line); min-height: 36px; }
-  main { display: grid; grid-template-columns: 1.1fr 1fr 1.3fr; gap: 12px; padding: 12px; height: calc(100vh - 110px); }
-  section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: auto; }
-  section h2 { position: sticky; top: 0; margin: 0; padding: 10px 14px; font-size: 12px; text-transform: uppercase;
-               letter-spacing: 1px; color: var(--muted); background: var(--panel); border-bottom: 1px solid var(--line); }
+  .controls { display: flex; align-items: center; gap: 8px; }
+  button {
+    font: 500 13px/1 var(--font-sans);
+    background: var(--blue); color: #fff; border: 1px solid transparent;
+    border-radius: 6px; padding: 9px 16px; cursor: pointer; transition: opacity .15s, background .15s;
+  }
+  button:hover:not(:disabled) { background: #2574eb; }
+  button.secondary { background: var(--panel-alt); border-color: var(--line); color: var(--text); }
+  button.secondary:hover:not(:disabled) { background: #2c2f36; }
+  button:disabled { opacity: 0.38; cursor: default; }
+
+  /* --- Main Two-Column Layout --- */
+  main {
+    display: grid;
+    grid-template-columns: 1.22fr 1.18fr;
+    gap: 14px;
+    padding: 12px 20px;
+    height: calc(100vh - 74px);
+    min-height: 540px;
+  }
+  section {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-head {
+    padding: 10px 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .panel-title {
+    font-size: 13px; font-weight: 600; letter-spacing: 0.2px; margin: 0;
+  }
+  .pipeline-tag {
+    font: 400 11px/1 var(--font-mono); color: var(--muted);
+  }
+  .panel-body { flex: 1; overflow: auto; }
+
+  /* --- Tyre Legend --- */
+  .legend { display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--muted); }
+  .legend-item { display: inline-flex; align-items: center; gap: 4px; }
+  .tyre {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid;
+    font: 700 9px/1 var(--font-mono); color: var(--text);
+  }
+  .tyre.sm { width: 13px; height: 13px; border-width: 2px; font-size: 8px; }
+  .SOFT { border-color: var(--red); }
+  .MEDIUM { border-color: var(--yellow); }
+  .HARD { border-color: #E8EAED; }
+  .INTERMEDIATE { border-color: var(--green); }
+  .WET { border-color: var(--blue); }
+
+  /* --- Linear Field Gap Trace (with dedicated axis row below track) --- */
+  .gap-trace-box {
+    padding: 9px 16px 8px;
+    background: #15171C;
+    border-bottom: 1px solid var(--line);
+  }
+  .gap-trace-header {
+    display: flex; justify-content: space-between; font-size: 10px;
+    color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 5px;
+  }
+  .gap-track {
+    position: relative; height: 28px; background: var(--panel-alt);
+    border: 1px solid var(--line); border-radius: 5px; overflow: hidden;
+  }
+  .gap-grid-line {
+    position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,0.06);
+  }
+  .gap-axis {
+    position: relative; height: 14px; margin-top: 3px;
+  }
+  .gap-grid-label {
+    position: absolute; top: 0; font: 400 9px/1 var(--font-mono);
+    color: var(--muted); transform: translateX(-50%);
+  }
+  .car-dot {
+    position: absolute; top: 4px; transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center; cursor: default;
+    transition: left 0.4s ease-out;
+  }
+  .car-dot-circle {
+    width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid #121317;
+  }
+  .car-dot-label {
+    font: 600 8px/1 var(--font-mono); color: var(--text); margin-top: 2px;
+    text-shadow: 0 1px 2px #000;
+  }
+
+  /* --- Timing Table (High-contrast aligned tabular numbers) --- */
   table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-  td { padding: 5px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-  td.pos { color: var(--muted); width: 28px; }
-  td.drv { font-weight: 700; border-left: 4px solid transparent; }
-  .tyre { display: inline-block; width: 18px; height: 18px; border-radius: 50%; border: 3px solid; text-align: center;
-          font-size: 9px; line-height: 12px; font-weight: 700; margin-right: 4px; }
-  .SOFT { border-color: #ef4444; } .MEDIUM { border-color: #facc15; } .HARD { border-color: #f1f5f9; }
-  .INTERMEDIATE { border-color: #22c55e; } .WET { border-color: #3b82f6; }
-  .item { padding: 10px 14px; border-bottom: 1px solid var(--line); }
-  .item.new { animation: flash 2s ease-out; }
-  @keyframes flash { from { background: #3a1414; } to { background: transparent; } }
-  .badge { display: inline-block; padding: 1px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; margin-right: 6px; }
-  .SAFETY_CAR { background: var(--warn); color: #111; } .RAIN_STARTED { background: var(--info); color: #111; }
-  .PIT_STOP { background: var(--line); } .GAP_CLOSING { background: #7c3aed; }
-  .meta { color: var(--muted); font-size: 12px; }
-  .call { white-space: pre-wrap; margin-top: 6px; }
-  .failed { color: var(--accent); }
-  .empty { padding: 14px; color: var(--muted); }
+  thead th {
+    position: sticky; top: 0; z-index: 2;
+    background: #16181D; color: var(--muted);
+    font: 500 10px/1.2 var(--font-sans); text-transform: uppercase; letter-spacing: 0.6px;
+    padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  thead th.num, td.num { text-align: right; font-family: var(--font-mono); font-size: 12px; }
+  td.num.primary { color: var(--text); font-weight: 500; }
+  td.num.secondary { color: var(--text-sec); }
+  tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
+  td { padding: 5px 10px; border-bottom: 1px solid rgba(44, 46, 53, 0.65); white-space: nowrap; }
+  td.pos { font: 600 12px/1 var(--font-mono); color: var(--muted); width: 32px; text-align: right; }
+  td.drv-cell { border-left: 4px solid transparent; padding-left: 8px; }
+  .drv-code { font: 600 12px/1.2 var(--font-mono); color: var(--text); display: inline-block; width: 30px; }
+  .drv-name { font-size: 12px; color: #D2D5DC; }
+  .drv-team { font-size: 11px; color: var(--muted); margin-left: 6px; }
+  .tyre-wrap { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 12px; }
+  .tyre-age { color: var(--muted); font-size: 11px; }
+  .retired-badge {
+    display: inline-block; font: 500 10px/1 var(--font-mono); letter-spacing: 0.4px;
+    color: var(--muted);
+  }
+  tr.retired td { opacity: 0.45; }
+
+  /* --- Right Column: Decision Cards & 4-Column Micro-Grid --- */
+  .feed { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .decision-card {
+    background: var(--panel-alt);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--blue);
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+  .decision-card.SAFETY_CAR {
+    border-left-color: var(--yellow);
+    background: linear-gradient(90deg, rgba(254, 199, 0, 0.07), var(--panel-alt) 40%);
+  }
+  .decision-card.RAIN_STARTED {
+    border-left-color: var(--blue);
+    background: linear-gradient(90deg, rgba(49, 134, 255, 0.09), var(--panel-alt) 40%);
+  }
+  .decision-card.GAP_CLOSING {
+    border-left-color: var(--green);
+  }
+  .decision-card.new { animation: flash 1.8s ease-out; }
+  @keyframes flash { from { background: rgba(49, 134, 255, 0.25); } to { background: var(--panel-alt); } }
+
+  .card-top {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  }
+  .card-title-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .badge {
+    display: inline-block; padding: 2px 7px; border-radius: 4px;
+    font: 700 10px/1.3 var(--font-mono); letter-spacing: 0.5px; text-transform: uppercase;
+  }
+  .badge.SAFETY_CAR { background: var(--yellow); color: #121317; }
+  .badge.RAIN_STARTED { background: var(--blue); color: #fff; }
+  .badge.GAP_CLOSING { background: var(--green); color: #121317; }
+  .badge.PIT_STOP { background: var(--line); color: var(--text); }
+
+  .card-subject { font-size: 13px; font-weight: 600; color: var(--text); }
+  .card-meta { font: 400 11px/1.3 var(--font-mono); color: var(--muted); }
+
+  .call-table {
+    width: 100%; border-collapse: collapse; margin-top: 8px;
+    border-top: 1px solid var(--line);
+  }
+  .call-table thead th {
+    position: static; background: transparent;
+    font: 500 9px/1.2 var(--font-sans); text-transform: uppercase; letter-spacing: 0.6px;
+    color: var(--muted); padding: 6px 6px 4px; border-bottom: 1px solid rgba(44, 46, 53, 0.6);
+  }
+  .call-table thead th:first-child { padding-left: 0; }
+  .call-table thead th:last-child { text-align: right; padding-right: 0; }
+  .call-table tbody td {
+    padding: 5px 6px; font-size: 12px; vertical-align: middle;
+    border-bottom: 1px solid rgba(44, 46, 53, 0.45); white-space: normal;
+  }
+  .call-table tbody tr:last-child td { border-bottom: none; padding-bottom: 2px; }
+  .call-table td.c-car {
+    font: 600 12px/1 var(--font-mono); color: var(--text);
+    width: 38px; padding-left: 0; white-space: nowrap;
+  }
+  .call-table td.c-act { width: 118px; white-space: nowrap; }
+  .call-table td.c-why { color: var(--text-sec); line-height: 1.35; }
+  .call-table td.c-out {
+    text-align: right; padding-right: 0; width: 86px; white-space: nowrap;
+    font: 500 11px/1 var(--font-mono);
+  }
+
+  .action-tag {
+    display: inline-block; font: 700 10px/1.1 var(--font-mono);
+    padding: 2px 6px; border-radius: 3px; letter-spacing: 0.2px;
+  }
+  .action-tag.box { background: rgba(252, 65, 61, 0.18); color: #ff807d; border: 1px solid rgba(252, 65, 61, 0.38); }
+  .action-tag.stay { background: rgba(0, 175, 87, 0.16); color: #4ade80; border: 1px solid rgba(0, 175, 87, 0.32); }
+
+  .outcome-pitted {
+    display: inline-block; padding: 2px 7px; border-radius: 999px;
+    background: rgba(254, 199, 0, 0.15); color: var(--yellow);
+    border: 1px solid rgba(254, 199, 0, 0.38); font-size: 10px;
+  }
+  .outcome-stayed { color: var(--muted); font-size: 11px; }
+
+  .pending-call { font-size: 12px; color: var(--muted); font-style: italic; margin-top: 6px; }
+  .failed { color: var(--red); font-size: 12px; margin-top: 6px; }
+
+  /* --- Pit Stop Burst Group --- */
+  details.pit-group {
+    background: #15171C; border: 1px solid var(--line); border-radius: 8px;
+    padding: 7px 12px; font-size: 12px;
+  }
+  details.pit-group summary {
+    cursor: pointer; color: var(--muted); font-weight: 500;
+    display: flex; align-items: center; justify-content: space-between; list-style: none;
+  }
+  details.pit-group summary::-webkit-details-marker { display: none; }
+  .pit-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+  .pit-chip {
+    font: 500 11px/1.2 var(--font-mono); background: var(--panel-alt);
+    border: 1px solid var(--line); border-radius: 4px; padding: 3px 7px; color: var(--text);
+  }
+  .empty { padding: 24px 16px; color: var(--muted); text-align: center; font-size: 13px; }
 </style>
+<link rel="stylesheet" href="/static/local/overlay.css" onerror="this.remove()">
 </head>
 <body>
 <header>
-  <h1><span>F1</span> Pit Wall</h1>
-  <div class="clock">
-    <div>Lap <b id="lap">-</b> / 57</div>
-    <div>Race time <b id="race-time">-</b></div>
-    <div>Events <b id="events">0</b></div>
+  <div class="brand">
+    <h1><span class="f1-tag">F1</span> Pit Wall</h1>
+    <div class="subtitle">2025 Australian GP · Laps 30–50</div>
   </div>
+  <div id="local-banner"></div>
+
+  <div class="metrics">
+    <div class="metric-card hero" title="OpenF1 telemetry, timing, weather and race control events streamed through Pub/Sub into BigQuery">
+      <div class="metric-label">
+        <span>Events</span>
+        <span id="event-rate" class="metric-sub">0 /s</span>
+      </div>
+      <div id="events" class="metric-val">0</div>
+    </div>
+    <div class="metric-card" title="Current lap within the Laps 30–50 replay window">
+      <div class="metric-label"><span>Lap</span><span class="metric-sub">30–50</span></div>
+      <div class="metric-val"><span id="lap">-</span> / 50</div>
+    </div>
+    <div class="metric-card" title="UTC timestamp when the event occurred during the race on 2025-03-16">
+      <div class="metric-label"><span>Race Clock</span><span id="speed" class="metric-sub">UTC</span></div>
+      <div id="race-time" class="metric-val">-</div>
+    </div>
+  </div>
+
+  <div class="state-cluster">
+    <div id="phase" class="phase-pill"><span class="phase-dot"></span><span id="phase-text">Idle</span></div>
+    <span id="run-badge"></span>
+    <span id="transient-note"></span>
+  </div>
+
   <div class="spacer"></div>
-  <button id="start">Start race</button>
-  <button id="stop" class="secondary" disabled>Stop</button>
+  <div class="controls">
+    <button id="start">Start race</button>
+    <button id="stop" class="secondary" disabled>Stop queries</button>
+  </div>
 </header>
-<div id="status">Press Start race to replay the 2025 Australian Grand Prix, laps 30 to 50.</div>
+
 <main>
-  <section><h2>Timing</h2><table id="timing"></table></section>
-  <section><h2>Moments</h2><div id="moments"><div class="empty">No moments yet.</div></div></section>
-  <section><h2>Strategy calls</h2><div id="calls"><div class="empty">No calls yet.</div></div></section>
+  <!-- Left Panel: Timing Tower + Gap Trace -->
+  <section>
+    <div class="panel-head">
+      <h2 class="panel-title">Live Timing Tower</h2>
+      <div class="legend" title="Tyre compound and laps completed on that set">
+        <span class="legend-item"><span class="tyre sm SOFT">S</span>Soft</span>
+        <span class="legend-item"><span class="tyre sm MEDIUM">M</span>Med</span>
+        <span class="legend-item"><span class="tyre sm HARD">H</span>Hard</span>
+        <span class="legend-item"><span class="tyre sm INTERMEDIATE">I</span>Inter</span>
+        <span class="legend-item"><span class="tyre sm WET">W</span>Wet</span>
+      </div>
+    </div>
+
+    <div class="gap-trace-box">
+      <div class="gap-trace-header">
+        <span>← Trailing Pack (seconds behind leader)</span>
+        <span>Race Leader (0.0s) →</span>
+      </div>
+      <div id="gap-track" class="gap-track"></div>
+      <div id="gap-axis" class="gap-axis"></div>
+    </div>
+
+    <div class="panel-body">
+      <table>
+        <thead>
+          <tr>
+            <th class="num" title="Track position">Pos</th>
+            <th>Driver &amp; Team</th>
+            <th class="num" title="Seconds behind the P1 race leader">Gap (s)</th>
+            <th class="num" title="Seconds behind the car immediately ahead">Interval (s)</th>
+            <th title="Tyre compound and laps completed on this set">Tyre</th>
+            <th class="num" title="Duration of the last completed lap in seconds">Last Lap (s)</th>
+          </tr>
+        </thead>
+        <tbody id="timing"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Right Panel: Race Moments Paired with Strategy Calls -->
+  <section>
+    <div class="panel-head">
+      <h2 class="panel-title">Race Moments &amp; Strategy Calls</h2>
+      <span class="pipeline-tag">Continuous Queries → AI.GENERATE</span>
+    </div>
+    <div id="feed" class="panel-body feed">
+      <div class="empty">No moments yet. Start a replay to watch continuous queries flag safety cars, rain and closing gaps.</div>
+    </div>
+  </section>
 </main>
+
 <script>
 const state = {
-  runId: localStorage.getItem("runId"),
+  runId: localStorage.getItem("runId") || "",
   jobIds: JSON.parse(localStorage.getItem("jobIds") || "[]"),
+  phase: "idle", // idle | starting | live | finished
   startingQueries: false,
-  seenMoments: new Set(),
-  seenCalls: new Set(),
-  codes: {},
+  autoStoppedForRun: localStorage.getItem("autoStoppedForRun") || "",
+  windowEnd: "",
+  seenCards: new Set(),
+  drivers: {},
+  displayEvents: 0,
+  targetEvents: 0,
+  eventRate: 0,
+  lastPollTime: 0,
+  lastPollEvents: 0,
+  finishedAtMs: 0,
 };
+
 const $ = (id) => document.getElementById(id);
-const status = (text) => { $("status").textContent = text; };
+const note = (text) => {
+  $("transient-note").textContent = text;
+  $("transient-note").title = text;
+};
 const save = () => {
   localStorage.setItem("runId", state.runId || "");
   localStorage.setItem("jobIds", JSON.stringify(state.jobIds));
+  localStorage.setItem("autoStoppedForRun", state.autoStoppedForRun || "");
 };
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const clock = (iso) => iso ? iso.slice(11, 19) : "-";
-const driver = (n) => n == null ? "" : (state.codes[n] || `#${n}`);
+
+function formatShortName(fullName) {
+  if (!fullName) return "";
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0];
+  const last = parts[parts.length - 1];
+  return last.charAt(0).toUpperCase() + last.slice(1).toLowerCase();
+}
+
+function driverLabel(num) {
+  if (num == null) return "Full Field";
+  const d = state.drivers[num];
+  if (!d) return `Car #${num}`;
+  return `${d.code} · ${formatShortName(d.full_name)} (${d.team_name || ""})`;
+}
+
+function formatSeconds(val, plusPrefix = false) {
+  if (val == null || val === "") return "—";
+  const str = String(val).trim();
+  const num = parseFloat(str.replace("+", ""));
+  if (!Number.isFinite(num)) return str;
+  return (plusPrefix ? "+" : "") + num.toFixed(3);
+}
+
+function setPhase(phase) {
+  state.phase = phase;
+  const pill = $("phase");
+  pill.className = `phase-pill ${phase}`;
+  const labels = {
+    idle: "Idle",
+    starting: "Starting",
+    live: "Live",
+    finished: "Complete",
+  };
+  $("phase-text").textContent = labels[phase] || "Idle";
+
+  const busy = phase === "starting" || phase === "live";
+  $("start").disabled = busy;
+  $("start").textContent = busy ? "Race running…" : "Start race";
+  $("stop").disabled = !state.jobIds.length && !busy;
+}
 
 async function post(path, body) {
-  const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+  const r = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body || {}),
+  });
   const data = await r.json();
   if (!r.ok) throw new Error(data.error || r.statusText);
   return data;
 }
 
+// Smooth 20fps counter interpolation between 2-second BigQuery polls
+setInterval(() => {
+  if (state.displayEvents < state.targetEvents) {
+    const diff = state.targetEvents - state.displayEvents;
+    const step = Math.max(1, Math.ceil(diff * 0.18));
+    state.displayEvents = Math.min(state.targetEvents, state.displayEvents + step);
+    $("events").textContent = state.displayEvents.toLocaleString();
+  } else if (state.phase === "live" && state.eventRate > 0) {
+    state.displayEvents += Math.round(state.eventRate / 20);
+    $("events").textContent = state.displayEvents.toLocaleString();
+  }
+}, 50);
+
 $("start").onclick = async () => {
-  $("start").disabled = true;
+  setPhase("starting");
   try {
     if (state.jobIds.length) await post("/api/queries/stop", { job_ids: state.jobIds });
     const { run_id } = await post("/api/start");
-    Object.assign(state, { runId: run_id, jobIds: [], seenMoments: new Set(), seenCalls: new Set() });
+    Object.assign(state, {
+      runId: run_id,
+      jobIds: [],
+      seenCards: new Set(),
+      displayEvents: 0,
+      targetEvents: 0,
+      eventRate: 0,
+      lastPollEvents: 0,
+      finishedAtMs: 0,
+    });
+    $("events").textContent = "0";
+    $("event-rate").textContent = "0 /s";
+    $("run-badge").textContent = run_id;
     save();
-    status(`Replay ${run_id} starting. The replayer job needs up to 4 minutes before the first event, longest on the first run in a new project.`);
+    note("Cold start takes 20s–4m before first event");
   } catch (e) {
-    status(`Could not start: ${e.message}`);
+    setPhase("idle");
+    note(`Error: ${e.message}`);
   }
-  $("start").disabled = false;
 };
 
 $("stop").onclick = async () => {
-  await post("/api/queries/stop", { job_ids: state.jobIds });
+  if (state.jobIds.length) {
+    await post("/api/queries/stop", { job_ids: state.jobIds });
+  }
   state.jobIds = [];
   save();
-  status("Continuous queries cancelled. Nothing is billing for slots now.");
+  setPhase(state.targetEvents > 0 ? "finished" : "idle");
+  $("event-rate").textContent = "0 /s";
+  note("Queries stopped");
 };
 
 async function startQueries() {
   state.startingQueries = true;
-  status("Events are arriving. Starting the two continuous queries...");
+  note("Starting continuous queries…");
   try {
     const { job_ids } = await post("/api/queries/start");
     state.jobIds = job_ids;
     save();
-    status(`Continuous queries running: ${job_ids.join(", ")}. Press Stop when the race is over.`);
+    note("");
   } catch (e) {
-    status(`Could not start the continuous queries: ${e.message}`);
+    note(`Query error: ${e.message}`);
   }
   state.startingQueries = false;
 }
 
+function renderGapTrace(timing) {
+  const track = $("gap-track");
+  const axis = $("gap-axis");
+  if (!timing.length) {
+    track.innerHTML = "";
+    axis.innerHTML = "";
+    return;
+  }
+  const parsed = timing.map((t) => {
+    const g = t.position === 1 ? 0 : parseFloat(String(t.gap_to_leader || "").replace("+", ""));
+    return { ...t, gapNum: Number.isFinite(g) ? g : null };
+  }).filter((t) => t.gapNum !== null);
+
+  const maxGap = Math.max(15, ...parsed.map((t) => t.gapNum));
+  const ticks = [0, Math.round(maxGap * 0.25), Math.round(maxGap * 0.5), Math.round(maxGap * 0.75), Math.round(maxGap)];
+
+  const gridLinesHtml = ticks.map((s) => {
+    const pct = Math.min(96, Math.max(4, 96 - (s / maxGap) * 92));
+    return `<div class="gap-grid-line" style="left:${pct}%"></div>`;
+  }).join("");
+
+  const axisLabelsHtml = ticks.map((s) => {
+    const pct = Math.min(96, Math.max(4, 96 - (s / maxGap) * 92));
+    const label = s === 0 ? "0.0s" : `+${s}s`;
+    return `<div class="gap-grid-label" style="left:${pct}%">${label}</div>`;
+  }).join("");
+
+  let lastLabelPct = 200;
+  const dotsHtml = parsed.map((t) => {
+    const pct = Math.min(96, Math.max(4, 96 - (t.gapNum / maxGap) * 92));
+    const showCode = (lastLabelPct - pct) >= 4.5;
+    if (showCode) lastLabelPct = pct;
+    return `<div class="car-dot" style="left:${pct}%" title="P${t.position} ${esc(t.code)} (${esc(t.full_name || "")}): ${t.position === 1 ? "Leader" : "+" + t.gapNum.toFixed(3) + "s"}">
+      <div class="car-dot-circle" style="background:#${esc(t.colour || "3186FF")}"></div>
+      ${showCode ? `<div class="car-dot-label">${esc(t.code)}</div>` : ""}
+    </div>`;
+  }).join("");
+
+  track.innerHTML = gridLinesHtml + dotsHtml;
+  axis.innerHTML = axisLabelsHtml;
+}
+
+function MomentSubject(m) {
+  if (m.moment === "SAFETY_CAR") {
+    return "Full Field — Cheap pit stop window open";
+  }
+  if (m.moment === "RAIN_STARTED") {
+    return "Full Field — Track transitioning from dry to wet";
+  }
+  if (m.moment === "GAP_CLOSING") {
+    const detailClean = String(m.detail || "").replace("gap to car ahead ", "gap ");
+    return `${driverLabel(m.driver_number)} · ${detailClean}`;
+  }
+  return driverLabel(m.driver_number);
+}
+
+function shortenCompound(raw) {
+  return raw
+    .toUpperCase()
+    .replace(/INTERMEDIATES?/g, "INTER")
+    .replace(/MEDIUMS?/g, "MED")
+    .replace(/HARDS?/g, "HARD")
+    .replace(/SOFTS?/g, "SOFT")
+    .replace(/WETS?/g, "WET");
+}
+
+function parseCallLine(line) {
+  // Expected: "PIA: BOX for SOFT/MEDIUM - track is dry..." or "VER (#1): STAY OUT, hunting NOR..."
+  const m = line.match(/^([A-Z]{3})\b[^:–-]*[:–-]\s*(.*)$/);
+  const code = m ? m[1] : "";
+  let rest = (m ? m[2] : line).trim();
+
+  let actionType = "stay";
+  let actionLabel = "CALL";
+
+  const boxMatch = rest.match(/^BOX(?:\s+for\s+([A-Za-z/]+))?\s*[,;:.–-]?\s*(.*)$/i);
+  const stayMatch = rest.match(/^STAY\s+OUT\s*[,;:.–-]?\s*(.*)$/i);
+
+  if (boxMatch) {
+    actionType = "box";
+    const comp = boxMatch[1] ? shortenCompound(boxMatch[1]) : "";
+    actionLabel = comp ? `BOX · ${comp}` : "BOX";
+    rest = boxMatch[2] || "";
+  } else if (stayMatch) {
+    actionType = "stay";
+    actionLabel = "STAY OUT";
+    rest = stayMatch[1] || "";
+  }
+
+  rest = rest.replace(/^[,;:.–-]+\s*/, "").trim();
+  if (rest.length > 0) {
+    rest = rest.charAt(0).toUpperCase() + rest.slice(1);
+  }
+  return { code, actionType, actionLabel, reason: rest };
+}
+
+function renderCallTable(callText, momentLap, pitStopsByCode) {
+  const lines = String(callText || "").split(/\n+/).map((l) => l.trim()).filter(Boolean);
+  const rowsHtml = lines.map((line) => {
+    const { code, actionType, actionLabel, reason } = parseCallLine(line);
+    let outcomeHtml = `<span class="outcome-stayed">Stayed out</span>`;
+    if (code && momentLap) {
+      const pits = (pitStopsByCode[code] || []).filter((lap) => lap >= momentLap - 1 && lap <= momentLap + 2);
+      if (pits.length) {
+        outcomeHtml = `<span class="outcome-pitted">Pitted L${pits[0]}</span>`;
+      }
+    }
+    return `<tr>
+      <td class="c-car">${esc(code)}</td>
+      <td class="c-act"><span class="action-tag ${actionType}">${esc(actionLabel)}</span></td>
+      <td class="c-why">${esc(reason)}</td>
+      <td class="c-out">${outcomeHtml}</td>
+    </tr>`;
+  }).join("");
+
+  return `<table class="call-table">
+    <thead>
+      <tr>
+        <th>Car</th>
+        <th>Recommendation</th>
+        <th>Reasoning</th>
+        <th>Actual</th>
+      </tr>
+    </thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>`;
+}
+
+function renderFeed(moments, calls) {
+  const feed = $("feed");
+  if (!moments.length && !calls.length) {
+    feed.innerHTML = '<div class="empty">No moments yet. Waiting for continuous queries to flag race events…</div>';
+    return;
+  }
+
+  const pitStopsByCode = {};
+  moments.filter((m) => m.moment === "PIT_STOP").forEach((m) => {
+    const d = state.drivers[m.driver_number];
+    const code = d ? d.code : null;
+    if (code && m.lap) {
+      (pitStopsByCode[code] = pitStopsByCode[code] || []).push(Number(m.lap));
+    }
+  });
+
+  const callByKey = {};
+  calls.forEach((k) => {
+    callByKey[`${k.moment}|${k.driver_number ?? ""}|${k.event_ts}`] = k;
+    callByKey[`${k.moment}|${k.driver_number ?? ""}|${k.lap ?? ""}`] = k;
+  });
+
+  const items = [];
+  for (const m of moments) {
+    if (m.moment === "PIT_STOP") {
+      const prev = items[items.length - 1];
+      if (prev && prev.type === "pit_group") {
+        prev.stops.push(m);
+      } else {
+        items.push({ type: "pit_group", stops: [m] });
+      }
+    } else {
+      items.push({ type: "decision", moment: m });
+    }
+  }
+
+  feed.innerHTML = items.map((item) => {
+    if (item.type === "pit_group") {
+      const stops = item.stops;
+      const laps = [...new Set(stops.map((s) => s.lap).filter(Boolean))].sort((a, b) => a - b);
+      const lapText = laps.length > 1 ? `Laps ${laps[0]}–${laps[laps.length - 1]}` : (laps.length === 1 ? `Lap ${laps[0]}` : "");
+      return `<details class="pit-group">
+        <summary>
+          <span><span class="badge PIT_STOP">PIT STOPS</span> <b>${stops.length} car${stops.length > 1 ? "s" : ""} pitted</b> · ${esc(lapText)}</span>
+          <span>Details ▾</span>
+        </summary>
+        <div class="pit-chips">
+          ${stops.map((s) => {
+            const d = state.drivers[s.driver_number];
+            const code = d ? d.code : `#${s.driver_number}`;
+            return `<span class="pit-chip"><b>${esc(code)}</b> L${s.lap ?? "?"} · ${esc(s.detail)}</span>`;
+          }).join("")}
+        </div>
+      </details>`;
+    }
+
+    const m = item.moment;
+    const key = `${m.moment}|${m.driver_number ?? ""}|${m.event_ts}`;
+    const call = callByKey[key] || callByKey[`${m.moment}|${m.driver_number ?? ""}|${m.lap ?? ""}`];
+    const resolvedLap = m.lap || (call && call.lap) || null;
+    const fresh = !state.seenCards.has(key);
+    state.seenCards.add(key);
+
+    const latencyStr = call && call.latency_ms ? ` · ${(call.latency_ms / 1000).toFixed(1)}s` : "";
+    let bodyHtml = `<div class="pending-call">Querying Gemini…</div>`;
+    if (call) {
+      if (call.status === "OK") {
+        bodyHtml = renderCallTable(call.call_text, Number(resolvedLap || 0), pitStopsByCode);
+      } else {
+        bodyHtml = `<div class="failed">Call failed: ${esc(call.error)}</div>`;
+      }
+    }
+
+    return `<div class="decision-card ${esc(m.moment)} ${fresh ? "new" : ""}">
+      <div class="card-top">
+        <div class="card-title-group">
+          <span class="badge ${esc(m.moment)}">${esc(m.moment.replace("_", " "))}</span>
+          <span class="card-subject">${esc(MomentSubject(m))}</span>
+        </div>
+        <span class="card-meta">${resolvedLap ? `Lap ${resolvedLap} · ` : ""}${clock(m.event_ts)}${latencyStr}</span>
+      </div>
+      ${bodyHtml}
+    </div>`;
+  }).join("");
+}
+
 function render(data) {
+  if (data.window_end) state.windowEnd = data.window_end;
   const c = data.clock;
-  $("events").textContent = c.events.toLocaleString();
+  const now = Date.now();
+  const totalEvents = Number(c.events || 0);
+
+  if (state.lastPollTime > 0 && totalEvents > state.lastPollEvents) {
+    const dt = (now - state.lastPollTime) / 1000;
+    state.eventRate = Math.round((totalEvents - state.lastPollEvents) / Math.max(0.5, dt));
+  } else if (totalEvents === state.lastPollEvents) {
+    state.eventRate = 0;
+  }
+  state.lastPollTime = now;
+  state.lastPollEvents = totalEvents;
+  state.targetEvents = totalEvents;
+  if (state.displayEvents === 0 || state.displayEvents > totalEvents) {
+    state.displayEvents = totalEvents;
+    $("events").textContent = totalEvents.toLocaleString();
+  }
+
   $("race-time").textContent = clock(c.race_time);
   const lap = Math.max(0, ...data.timing.map((t) => t.lap || 0));
   $("lap").textContent = lap || "-";
-  data.timing.forEach((t) => { state.codes[t.driver_number] = t.code; });
 
-  $("timing").innerHTML = data.timing.map((t) => `
-    <tr>
+  data.timing.forEach((t) => {
+    state.drivers[t.driver_number] = {
+      code: t.code,
+      full_name: t.full_name,
+      team_name: t.team_name,
+      colour: t.colour,
+    };
+  });
+
+  // The replay is over once race time is within 5 seconds of the window end and
+  // no new events arrived since the last poll.
+  const raceMs = c.race_time ? Date.parse(String(c.race_time).slice(0, 19) + "Z") : NaN;
+  const endMs = Date.parse(String(state.windowEnd).slice(0, 19) + "Z");
+  const reachedWindowEnd = Number.isFinite(raceMs) && Number.isFinite(endMs)
+    && raceMs >= endMs - 5000 && state.eventRate === 0;
+
+  if (reachedWindowEnd) {
+    setPhase("finished");
+    $("event-rate").textContent = "0 /s";
+    if (!state.finishedAtMs) state.finishedAtMs = now;
+    if (state.jobIds.length && state.autoStoppedForRun !== state.runId && (now - state.finishedAtMs > 60000)) {
+      state.autoStoppedForRun = state.runId;
+      post("/api/queries/stop", { job_ids: state.jobIds }).then(() => {
+        state.jobIds = [];
+        save();
+        setPhase("finished");
+        note("Queries auto-stopped");
+      }).catch(() => {});
+    } else if (!state.jobIds.length) {
+      note("");
+    }
+  } else if (totalEvents > 0) {
+    setPhase("live");
+    $("event-rate").textContent = `${state.eventRate.toLocaleString()} /s`;
+  }
+
+  renderGapTrace(data.timing);
+
+  $("timing").innerHTML = data.timing.map((t) => {
+    const compound = t.compound || "";
+    const isRetired = !compound && t.last_lap == null && t.gap_to_leader == null;
+    const gapDisplay = isRetired ? "OUT" : (t.position === 1 ? "Leader" : formatSeconds(t.gap_to_leader, true));
+    const intDisplay = isRetired || t.position === 1 ? "—" : formatSeconds(t.interval_ahead, true);
+    const shortName = formatShortName(t.full_name);
+    const tyreHtml = isRetired
+      ? `<span class="retired-badge">Retired</span>`
+      : `<span class="tyre-wrap">
+          <span class="tyre ${esc(compound)}" title="${esc(compound)}">${esc((compound || "-")[0])}</span>
+          <span class="tyre-age">${t.tyre_age != null ? `${t.tyre_age}L` : ""}</span>
+        </span>`;
+
+    return `<tr class="${isRetired ? "retired" : ""}">
       <td class="pos">${t.position ?? ""}</td>
-      <td class="drv" style="border-left-color:#${esc(t.colour)}">${esc(t.code)}</td>
-      <td>${esc(t.position === 1 ? "Leader" : t.gap_to_leader ?? "")}</td>
-      <td>${esc(t.position === 1 ? "" : t.interval_ahead ?? "")}</td>
-      <td><span class="tyre ${esc(t.compound)}">${esc((t.compound || "?")[0])}</span>${t.tyre_age ?? ""}</td>
-      <td>${t.last_lap ? t.last_lap.toFixed(3) : ""}</td>
-    </tr>`).join("");
+      <td class="drv-cell" style="border-left-color:#${esc(t.colour || "3186FF")}">
+        <span class="drv-code">${esc(t.code)}</span>
+        <span class="drv-name">${esc(shortName)}</span>
+        <span class="drv-team">${esc(t.team_name || "")}</span>
+      </td>
+      <td class="num primary">${esc(gapDisplay)}</td>
+      <td class="num secondary">${esc(intDisplay)}</td>
+      <td>${tyreHtml}</td>
+      <td class="num secondary">${t.last_lap ? t.last_lap.toFixed(3) : "—"}</td>
+    </tr>`;
+  }).join("");
 
-  $("moments").innerHTML = data.moments.length ? data.moments.map((m) => {
-    const key = `${m.moment}|${m.driver_number}|${m.event_ts}`;
-    const fresh = !state.seenMoments.has(key); state.seenMoments.add(key);
-    return `<div class="item ${fresh ? "new" : ""}">
-      <span class="badge ${esc(m.moment)}">${esc(m.moment.replace("_", " "))}</span>
-      <b>${esc(driver(m.driver_number))}</b> ${m.lap ? `lap ${m.lap}` : ""}
-      <div class="meta">${esc(m.detail)} · race ${clock(m.event_ts)}</div></div>`;
-  }).join("") : '<div class="empty">No moments yet.</div>';
+  renderFeed(data.moments, data.calls);
 
-  $("calls").innerHTML = data.calls.length ? data.calls.map((k) => {
-    const key = `${k.moment}|${k.driver_number}|${k.event_ts}`;
-    const fresh = !state.seenCalls.has(key); state.seenCalls.add(key);
-    const body = k.status === "OK" ? esc(k.call_text) : `<span class="failed">Call failed: ${esc(k.error)}</span>`;
-    return `<div class="item ${fresh ? "new" : ""}">
-      <span class="badge ${esc(k.moment)}">${esc(k.moment.replace("_", " "))}</span>
-      <b>${esc(driver(k.driver_number))}</b> ${k.lap ? `lap ${k.lap}` : ""}
-      <span class="meta">· ${(k.latency_ms / 1000).toFixed(1)} s</span>
-      <div class="call">${body}</div></div>`;
-  }).join("") : '<div class="empty">No calls yet.</div>';
+  if (totalEvents > 0 && !reachedWindowEnd && !state.jobIds.length && !state.startingQueries) {
+    startQueries();
+  }
+}
 
-  if (c.events > 0 && !state.jobIds.length && !state.startingQueries) startQueries();
-  $("stop").disabled = !state.jobIds.length;
+async function init() {
+  try {
+    const r = await fetch("/api/latest");
+    if (r.ok) {
+      const info = await r.json();
+      if (info.window_end) state.windowEnd = info.window_end;
+      if (info.replay_speed) $("speed").textContent = `${info.replay_speed}× UTC`;
+      if (info.overlay && info.overlay.banner) {
+        const b = $("local-banner");
+        b.textContent = info.overlay.banner;
+        b.style.display = "inline-block";
+      }
+      if (!state.runId && info.run_id) {
+        state.runId = info.run_id;
+        save();
+      }
+    }
+  } catch (e) { /* ignore init error */ }
+  if (state.runId) {
+    $("run-badge").textContent = state.runId;
+  }
+  poll();
 }
 
 async function poll() {
@@ -171,11 +908,12 @@ async function poll() {
     try {
       const r = await fetch(`/api/state?run_id=${encodeURIComponent(state.runId)}`);
       if (r.ok) render(await r.json());
-    } catch (e) { /* keep polling through a transient error */ }
+    } catch (e) { /* keep polling through transient errors */ }
   }
   setTimeout(poll, 2000);
 }
-poll();
+
+init();
 </script>
 </body>
 </html>

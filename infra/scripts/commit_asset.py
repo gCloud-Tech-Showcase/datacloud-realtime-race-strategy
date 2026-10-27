@@ -12,6 +12,7 @@ Usage: commit_asset.py <repository resource name> <path to source file> <target 
 A source path of "-" commits the text in the ASSET_CONTENT environment
 variable instead, for content that `tofu apply` renders from a template.
 """
+
 import base64
 import json
 import os
