@@ -84,7 +84,7 @@ Each line is a guardrail. The reasons are in comments next to the code. The obse
 ## Teardown
 
 ```bash
-# Stop the continuous queries first: the pit wall's Stop button, or the saved query 99 Stop.
+# Stop the continuous queries first: the pit wall's Stop queries button, or the saved query 99 Stop.
 cd infra && tofu destroy
 ```
 
