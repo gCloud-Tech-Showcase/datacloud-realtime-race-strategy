@@ -32,6 +32,13 @@ resource "google_bigquery_dataset_iam_member" "pitwall_reader" {
   member     = google_service_account.pitwall.member
 }
 
+# Read laps.json to label the window with lap numbers.
+resource "google_storage_bucket_iam_member" "pitwall_data_reader" {
+  bucket = google_storage_bucket.race_data.name
+  role   = "roles/storage.objectViewer"
+  member = google_service_account.pitwall.member
+}
+
 # Run the replayer with a RUN_ID override.
 resource "google_cloud_run_v2_job_iam_member" "pitwall_runs_replayer" {
   location = google_cloud_run_v2_job.replayer.location
@@ -103,6 +110,22 @@ resource "google_cloud_run_v2_service" "pitwall" {
         name  = "REPLAY_SPEED"
         value = var.replay_speed
       }
+      env {
+        name  = "REPLAY_WINDOW_START"
+        value = var.replay_window_start
+      }
+      env {
+        name  = "DATA_BUCKET"
+        value = google_storage_bucket.race_data.name
+      }
+      env {
+        name  = "OPENF1_SESSION_KEY"
+        value = var.openf1_session_key
+      }
+      env {
+        name  = "RACE_NAME"
+        value = var.race_name
+      }
     }
   }
 
@@ -116,6 +139,7 @@ resource "google_cloud_run_v2_service" "pitwall" {
     time_sleep.wait_continuous_assignment,
     google_project_iam_member.pitwall_job_user,
     google_bigquery_dataset_iam_member.pitwall_reader,
+    google_storage_bucket_iam_member.pitwall_data_reader,
     google_cloud_run_v2_job_iam_member.pitwall_runs_replayer,
     google_service_account_iam_member.pitwall_acts_as_cq_runner,
   ]

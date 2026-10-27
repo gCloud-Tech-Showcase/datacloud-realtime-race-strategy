@@ -13,12 +13,14 @@ replay has written its first events: a continuous query started on an idle
 table fails with "Invalid timestamp bounds".
 """
 
+import functools
 import json
 import logging
 import os
 import pathlib
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta
 
 import google.auth
 from flask import Flask, jsonify, request, send_from_directory
@@ -35,6 +37,10 @@ REPLAYER_JOB = os.environ["REPLAYER_JOB"]
 CQ_SERVICE_ACCOUNT = os.environ["CQ_SERVICE_ACCOUNT"]
 REPLAY_WINDOW_END = os.environ["REPLAY_WINDOW_END"]
 REPLAY_SPEED = os.environ["REPLAY_SPEED"]
+REPLAY_WINDOW_START = os.environ["REPLAY_WINDOW_START"]
+DATA_BUCKET = os.environ["DATA_BUCKET"]
+OPENF1_SESSION_KEY = os.environ["OPENF1_SESSION_KEY"]
+RACE_NAME = os.environ["RACE_NAME"]
 CONTINUOUS_QUERIES = {
     "moments-fast": os.environ["MOMENTS_FAST_SQL"],
     "moments-windowed": os.environ["MOMENTS_WINDOWED_SQL"],
@@ -156,6 +162,51 @@ def _jsonable(rows: list[dict]) -> list[dict]:
     ]
 
 
+def _race_time(value: str) -> datetime:
+    return datetime.fromisoformat(value[:19])
+
+
+@functools.cache
+def _window_laps() -> dict:
+    """Return the first and last lap of the replay window, from laps.json.
+
+    first: the lap in progress at the window start.
+    last: the last lap completed by the window end, which is what the timing
+    tower shows when the replay ends (a lap publishes when it ends).
+    """
+    url = (
+        f"https://storage.googleapis.com/storage/v1/b/{DATA_BUCKET}/o/"
+        f"openf1%2F{OPENF1_SESSION_KEY}%2Flaps.json?alt=media"
+    )
+    response = session.get(url, timeout=30)
+    response.raise_for_status()
+    laps = [lap for lap in response.json() if lap.get("date_start")]
+    start, end = _race_time(REPLAY_WINDOW_START), _race_time(REPLAY_WINDOW_END)
+    first = max(
+        (lap["lap_number"] for lap in laps if _race_time(lap["date_start"]) <= start),
+        default=None,
+    )
+    last = max(
+        (
+            lap["lap_number"]
+            for lap in laps
+            if lap.get("lap_duration")
+            and _race_time(lap["date_start"]) + timedelta(seconds=lap["lap_duration"]) <= end
+        ),
+        default=None,
+    )
+    return {"first": first, "last": last}
+
+
+def _window_laps_or_empty() -> dict:
+    # The page still works without lap labels, so a read failure is logged, not raised.
+    try:
+        return _window_laps()
+    except (OSError, ValueError, KeyError) as exc:
+        logger.warning("could not read the window laps: %s", exc)
+        return {}
+
+
 def _local_overlay() -> dict:
     path = pathlib.Path(app.static_folder) / "local" / "overlay.json"
     if path.is_file():
@@ -180,6 +231,8 @@ def latest():
             "run_id": rows[0]["run_id"] if rows else None,
             "window_end": REPLAY_WINDOW_END,
             "replay_speed": REPLAY_SPEED,
+            "race_name": RACE_NAME,
+            "window_laps": _window_laps_or_empty(),
             "overlay": _local_overlay(),
         }
     )

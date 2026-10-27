@@ -63,7 +63,7 @@ sequenceDiagram
     You->>BQ: a minute after the window ends, cancel 03a and 03b
 ```
 
-The page keeps the `run_id` and the continuous query job IDs in the browser, so the service keeps no state. The window end and the replay speed come from `infra/variables.tf` through environment variables.
+The page keeps the `run_id` and the continuous query job IDs in the browser, so the service keeps no state. The race name, the window and the replay speed come from `infra/variables.tf` through environment variables. The service reads `laps.json` from the race-data bucket once, to label the window with its first and last lap.
 
 The page also loads an optional stylesheet and banner from `services/pitwall/static/local/`, which is gitignored. Use it to brand a session without changing the repo.
 

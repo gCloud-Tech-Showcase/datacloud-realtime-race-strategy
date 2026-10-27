@@ -89,3 +89,9 @@ variable "pit_wall_viewers" {
   type        = list(string)
   default     = []
 }
+
+variable "race_name" {
+  description = "Name of the race, shown on the pit wall. Change it with openf1_session_key."
+  type        = string
+  default     = "2025 Australian Grand Prix"
+}

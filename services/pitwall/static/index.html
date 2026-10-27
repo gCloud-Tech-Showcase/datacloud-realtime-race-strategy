@@ -335,7 +335,7 @@
 <header>
   <div class="brand">
     <h1><span class="f1-tag">F1</span> Pit Wall</h1>
-    <div class="subtitle">2025 Australian GP · Laps 30–50</div>
+    <div id="race-subtitle" class="subtitle"></div>
   </div>
   <div id="local-banner"></div>
 
@@ -347,9 +347,9 @@
       </div>
       <div id="events" class="metric-val">0</div>
     </div>
-    <div class="metric-card" title="Current lap within the Laps 30–50 replay window">
-      <div class="metric-label"><span>Lap</span><span class="metric-sub">30–50</span></div>
-      <div class="metric-val"><span id="lap">-</span> / 50</div>
+    <div class="metric-card" title="Last lap completed by the race leader, within the replay window">
+      <div class="metric-label"><span>Lap</span><span id="lap-range" class="metric-sub"></span></div>
+      <div class="metric-val"><span id="lap">-</span><span id="lap-end"></span></div>
     </div>
     <div class="metric-card" title="UTC timestamp when the event occurred during the race on 2025-03-16">
       <div class="metric-label"><span>Race Clock</span><span id="speed" class="metric-sub">UTC</span></div>
@@ -886,6 +886,11 @@ async function init() {
       const info = await r.json();
       if (info.window_end) state.windowEnd = info.window_end;
       if (info.replay_speed) $("speed").textContent = `${info.replay_speed}× UTC`;
+      const laps = info.window_laps || {};
+      const range = laps.first && laps.last ? `Laps ${laps.first}–${laps.last}` : "";
+      $("race-subtitle").textContent = [info.race_name, range].filter(Boolean).join(" · ");
+      $("lap-range").textContent = range.replace("Laps ", "");
+      $("lap-end").textContent = laps.last ? ` / ${laps.last}` : "";
       if (info.overlay && info.overlay.banner) {
         const b = $("local-banner");
         b.textContent = info.overlay.banner;
