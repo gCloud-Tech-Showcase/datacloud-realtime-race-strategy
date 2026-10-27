@@ -328,6 +328,30 @@
     border: 1px solid var(--line); border-radius: 4px; padding: 3px 7px; color: var(--text);
   }
   .empty { padding: 24px 16px; color: var(--muted); text-align: center; font-size: 13px; }
+
+  /* --- Car photos (object table + OBJ.GET_ACCESS_URL) --- */
+  .car-thumb {
+    width: 44px; height: 20px; object-fit: cover; border-radius: 3px;
+    margin-right: 8px; vertical-align: middle; cursor: zoom-in;
+    background: var(--panel-alt);
+  }
+  #car-preview {
+    position: fixed; z-index: 50; display: none; width: 340px; pointer-events: none;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); overflow: hidden;
+  }
+  #car-preview img { width: 100%; display: block; }
+  #car-preview .cp-body { padding: 8px 10px; font-size: 11px; color: var(--text-sec); line-height: 1.4; }
+  #car-preview .cp-label {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); margin-top: 4px;
+  }
+  .credits {
+    border-top: 1px solid var(--line); padding: 6px 16px; font-size: 10px; color: var(--muted);
+  }
+  .credits summary { cursor: pointer; list-style: none; }
+  .credits summary::-webkit-details-marker { display: none; }
+  .credits a { color: var(--text-sec); }
+  .credits ul { margin: 4px 0 2px; padding-left: 16px; }
 </style>
 <link rel="stylesheet" href="/static/local/overlay.css" onerror="this.remove()">
 </head>
@@ -408,6 +432,10 @@
         <tbody id="timing"></tbody>
       </table>
     </div>
+    <details id="credits" class="credits" hidden>
+      <summary id="credits-summary"></summary>
+      <ul id="credits-list"></ul>
+    </details>
   </section>
 
   <!-- Right Panel: Race Moments Paired with Strategy Calls -->
@@ -422,6 +450,8 @@
   </section>
 </main>
 
+<div id="car-preview"></div>
+
 <script>
 const state = {
   runId: localStorage.getItem("runId") || "",
@@ -432,6 +462,7 @@ const state = {
   windowEnd: "",
   seenCards: new Set(),
   drivers: {},
+  cars: {},
   displayEvents: 0,
   targetEvents: 0,
   eventRate: 0,
@@ -861,7 +892,7 @@ function render(data) {
     return `<tr class="${isRetired ? "retired" : ""}">
       <td class="pos">${t.position ?? ""}</td>
       <td class="drv-cell" style="border-left-color:#${esc(t.colour || "3186FF")}">
-        <span class="drv-code">${esc(t.code)}</span>
+        ${carThumb(t.team_name)}<span class="drv-code">${esc(t.code)}</span>
         <span class="drv-name">${esc(shortName)}</span>
         <span class="drv-team">${esc(t.team_name || "")}</span>
       </td>
@@ -879,7 +910,56 @@ function render(data) {
   }
 }
 
+async function loadCars() {
+  try {
+    const r = await fetch("/api/cars");
+    if (!r.ok) return;
+    const { cars } = await r.json();
+    state.cars = Object.fromEntries(cars.filter((c) => c.photo_url).map((c) => [c.team, c]));
+    renderCredits(Object.values(state.cars));
+  } catch (e) { /* the page works without photos */ }
+}
+
+function renderCredits(cars) {
+  if (!cars.length) return;
+  const authors = [...new Set(cars.map((c) => `${c.author}, ${c.license}`))].join(" · ");
+  $("credits-summary").textContent = `Car photos: ${authors}, via Wikimedia Commons, resized ▾`;
+  $("credits-list").innerHTML = cars.map((c) =>
+    `<li>${esc(c.team)}: <a href="${esc(c.source)}" target="_blank" rel="noopener">photo</a>
+     by ${esc(c.author)}, <a href="${esc(c.license_url)}" target="_blank" rel="noopener">${esc(c.license)}</a></li>`).join("");
+  $("credits").hidden = false;
+}
+
+function carThumb(team) {
+  const car = state.cars[team];
+  if (!car) return "";
+  return `<img class="car-thumb" src="${esc(car.photo_url)}" alt="${esc(team)} car" data-team="${esc(team)}" loading="lazy">`;
+}
+
+// Larger photo and what Gemini read in it, on hover.
+document.addEventListener("mouseover", (e) => {
+  const img = e.target.closest && e.target.closest(".car-thumb");
+  const preview = $("car-preview");
+  if (!img) { preview.style.display = "none"; return; }
+  const car = state.cars[img.dataset.team];
+  if (!car) return;
+  const colours = (car.livery_colours || []).join(", ");
+  const sponsors = (car.sponsors || []).join(", ");
+  preview.innerHTML = `<img src="${esc(car.photo_url)}" alt="">
+    <div class="cp-body">
+      <div><b>${esc(car.team)}</b> · photo by ${esc(car.author)}, ${esc(car.license)}</div>
+      ${colours ? `<div class="cp-label">Gemini read: colours</div><div>${esc(colours)}</div>` : ""}
+      ${sponsors ? `<div class="cp-label">Gemini read: sponsors</div><div>${esc(sponsors)}</div>` : ""}
+    </div>`;
+  const rect = img.getBoundingClientRect();
+  preview.style.left = `${Math.min(rect.right + 12, window.innerWidth - 352)}px`;
+  preview.style.top = `${Math.max(8, Math.min(rect.top - 40, window.innerHeight - 320))}px`;
+  preview.style.display = "block";
+});
+
 async function init() {
+  loadCars();
+  setInterval(loadCars, 30 * 60 * 1000);
   try {
     const r = await fetch("/api/latest");
     if (r.ok) {

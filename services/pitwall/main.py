@@ -3,6 +3,7 @@
 Serves one page and a JSON API:
   GET  /api/state?run_id=...      timing tower, moments, calls and race clock
   GET  /api/latest                the latest run_id in raw_events, if any
+  GET  /api/cars                  one photo per team, with its credit and what Gemini read
   POST /api/start                 runs the replayer job with a new run_id
   POST /api/queries/start         starts both continuous queries
   POST /api/queries/stop          cancels the continuous queries it started
@@ -18,12 +19,15 @@ import json
 import logging
 import os
 import pathlib
+import threading
+import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 
 import google.auth
 from flask import Flask, jsonify, request, send_from_directory
+from google.api_core.exceptions import GoogleAPIError
 from google.auth.transport.requests import AuthorizedSession
 from google.cloud import bigquery
 
@@ -154,6 +158,31 @@ ORDER BY publish_time DESC
 LIMIT 1
 """
 
+# One row per team: a signed read URL for the photo (OBJ.GET_ACCESS_URL signs
+# it for 6 hours), the credit stored with the file, and Gemini's reading.
+CARS_SQL = """
+SELECT
+  p.team,
+  JSON_VALUE(OBJ.GET_ACCESS_URL(p.ref, 'r'), '$.access_urls.read_url') AS photo_url,
+  (SELECT value FROM UNNEST(p.metadata) WHERE name = 'author') AS author,
+  (SELECT value FROM UNNEST(p.metadata) WHERE name = 'license') AS license,
+  (SELECT value FROM UNNEST(p.metadata) WHERE name = 'license_url') AS license_url,
+  (SELECT value FROM UNNEST(p.metadata) WHERE name = 'source') AS source,
+  c.livery_colours,
+  c.sponsors
+FROM (
+  SELECT uri, ref, metadata,
+    (SELECT value FROM UNNEST(metadata) WHERE name = 'team') AS team
+  FROM `{project}.raw.car_photos`
+) AS p
+LEFT JOIN `{project}.serving.cars` AS c USING (uri)
+ORDER BY p.team
+"""
+# Refresh well before the signed URLs expire.
+CARS_TTL_SECONDS = 3600
+_cars_cache: dict = {"at": None, "rows": []}
+_cars_lock = threading.Lock()
+
 
 def _jsonable(rows: list[dict]) -> list[dict]:
     return [
@@ -236,6 +265,21 @@ def latest():
             "overlay": _local_overlay(),
         }
     )
+
+
+@app.get("/api/cars")
+def cars():
+    # The page works without photos, so a missing table answers with an empty list.
+    with _cars_lock:
+        stale = _cars_cache["at"] is None or time.monotonic() - _cars_cache["at"] > CARS_TTL_SECONDS
+        if stale:
+            try:
+                rows = [dict(row) for row in bq.query(CARS_SQL.format(project=PROJECT_ID)).result()]
+                _cars_cache.update(at=time.monotonic(), rows=rows)
+            except GoogleAPIError as exc:
+                logger.warning("could not read the car photos: %s", exc)
+                return jsonify({"cars": []})
+        return jsonify({"cars": _cars_cache["rows"]})
 
 
 @app.get("/api/state")

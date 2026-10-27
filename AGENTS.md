@@ -45,6 +45,8 @@ The full resource list is in [`README.md`](README.md#what-gets-created).
 | `raw` | `raw_events` | Every race event, written by the `race-events-bq` subscription (`infra/tables.tf`) |
 | `serving` | `moments` | Every moment, written by the `race-moments-bq` subscription. A moment can appear twice after a continuous query restarts. |
 | `serving` | `calls` | One row per answered moment, written by the strategist. `status` is `OK` or `FAILED`. |
+| `raw` | `car_photos` | Object table over `media/cars/*.jpg` in the race-data bucket (`infra/media.tf`). Custom metadata on each file holds the team and the credit. |
+| `serving` | `cars` | What Gemini read in each car photo, written once by the saved query `06 Cars` during the apply |
 
 The services are in `services/<name>/`, each with a `Dockerfile`. `infra/services.tf` builds them in Cloud Build, tagged with a hash of the source.
 
@@ -75,6 +77,8 @@ Each line is a guardrail. The reasons are in comments next to the code. The obse
 - **Never publish a record before it was known.** A lap publishes when it ends, and a stint without `lap_end`. The replayer adds `previous_rainfall` to weather records.
 - **Answer each moment once.** Pub/Sub redelivers, and the 10-minute lookback can flag a moment twice. The strategist checks `serving.calls` first and runs one request at a time.
 - **Keep the strategist's variables marker** (`-- (the strategist service sets the five variables here)`) in `queries/04-strategist-call.sql`. The service inserts its `SET` statements there.
+- **Match car photos by the `team` in their metadata,** never by what Gemini reads. Ask Gemini for lists only: a plain text field sometimes received its reasoning, and car numbers came from past seasons.
+- **Credit every car photo.** Add new photos to `media/car_photos.json` with author, license and source, and keep the pit wall's credits line. Use only CC BY or public domain photos.
 - **Write `thinkingLevel` in uppercase** in `model_params` (`"LOW"`). Lowercase is rejected.
 - **Each query in a guide has a saved query.** `queries/<NN>-<name>.sql` matches the block in step NN (`00` for checks, `99` for stop). Its first line is `-- <display name>`. Change the guide and the file in the same commit.
 - **Each reader-facing script and step guide has a notebook twin.** `scripts/verify.sh` pairs with `notebooks/verify.ipynb`, and `docs/01-race-strategy.md` with `notebooks/01-race-strategy.ipynb`. The notebooks copy the SQL of the saved queries, because a notebook cannot read the repo. Change all three in the same commit.

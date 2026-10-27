@@ -10,6 +10,7 @@ Back to the [repository README](../README.md).
 2. Two continuous queries that flag safety cars, pit stops, rain and closing gaps as the events arrive
 3. A strategist that answers each moment that matters with a Gemini call from `AI.GENERATE`
 4. A private pit wall that shows the timing, the moments and the calls live
+5. An object table over one photo per team, read by the same `AI.GENERATE` function
 
 ## Technologies
 
@@ -17,7 +18,8 @@ Back to the [repository README](../README.md).
 | --- | --- |
 | Pub/Sub | Carries race events and moments. BigQuery subscriptions land them in tables. |
 | BigQuery continuous queries | Flag the moments in SQL as the rows arrive, and publish them to Pub/Sub |
-| BigQuery `AI.GENERATE` with Gemini | Turns a snapshot of the field into a strategy call |
+| BigQuery `AI.GENERATE` with Gemini | Turns a snapshot of the field into a strategy call, and reads the car photos |
+| BigQuery object tables | Make the car photos in Cloud Storage queryable, with an ObjectRef per file |
 | Cloud Run | The replayer job, the strategist and the pit wall |
 | BigQuery Studio | Saved queries and notebooks for every step |
 | OpenTofu | Builds all of it with one `tofu apply` |

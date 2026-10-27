@@ -39,6 +39,18 @@ resource "google_storage_bucket_iam_member" "pitwall_data_reader" {
   member = google_service_account.pitwall.member
 }
 
+# Query the car photos object table through the connection, and sign
+# short-lived read URLs for the photos with OBJ.GET_ACCESS_URL.
+resource "google_bigquery_connection_iam_member" "pitwall_connection" {
+  for_each = toset(["roles/bigquery.connectionUser", "roles/bigquery.objectRefReader"])
+
+  project       = google_bigquery_connection.vertex_ai.project
+  location      = google_bigquery_connection.vertex_ai.location
+  connection_id = google_bigquery_connection.vertex_ai.connection_id
+  role          = each.value
+  member        = google_service_account.pitwall.member
+}
+
 # Run the replayer with a RUN_ID override.
 resource "google_cloud_run_v2_job_iam_member" "pitwall_runs_replayer" {
   location = google_cloud_run_v2_job.replayer.location
@@ -140,6 +152,7 @@ resource "google_cloud_run_v2_service" "pitwall" {
     google_project_iam_member.pitwall_job_user,
     google_bigquery_dataset_iam_member.pitwall_reader,
     google_storage_bucket_iam_member.pitwall_data_reader,
+    google_bigquery_connection_iam_member.pitwall_connection,
     google_cloud_run_v2_job_iam_member.pitwall_runs_replayer,
     google_service_account_iam_member.pitwall_acts_as_cq_runner,
   ]

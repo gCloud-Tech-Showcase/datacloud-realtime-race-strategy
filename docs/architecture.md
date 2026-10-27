@@ -28,7 +28,13 @@ flowchart LR
     PW -->|"poll"| RAW
     PW -->|"poll"| MOM
     PW -->|"poll"| CALLS
+    GCS -->|"object table"| PHOTOS[("raw.car_photos")]
+    PHOTOS -->|"AI.GENERATE, once at apply"| CARS[("serving.cars")]
+    PW -->|"signed photo URLs"| PHOTOS
+    PW -->|"read"| CARS
 ```
+
+The car photos sit outside the live path. The apply reads them once, and the pit wall shows them next to each car.
 
 ## Data Flow
 
@@ -77,6 +83,7 @@ The page also loads an optional stylesheet and banner from `services/pitwall/sta
 | Windowed rules | `queries/03b-moments-windowed.sql` | `GAP_CLOSING` from a `TUMBLE` window per car |
 | Strategist | `services/strategist/`, Cloud Run service `strategist` | Runs `queries/04-strategist-call.sql` for each safety car, rain start and gap closing |
 | Pit wall | `services/pitwall/`, Cloud Run service `pitwall` | Starts a replay and its continuous queries, shows timing, moments and calls, and cancels the queries when the window ends |
+| Car photos | `infra/media.tf`, `queries/06-cars.sql` | Object table `raw.car_photos` over one photo per team, read once by `AI.GENERATE` into `serving.cars` |
 | Capacity | Reservation `continuous-queries` | Enterprise edition, no baseline, autoscaling to 50 slots, `CONTINUOUS` assignment |
 
 The rendered queries in `queries/` are the single source of SQL. The apply deploys them as saved queries, and passes the same text to the pit wall and the strategist.
@@ -156,6 +163,10 @@ OpenF1 interval records carry no lap, so `lap` is empty for a gap closing. The p
 | `gemini-2.5-flash` | | No longer served for a new project | 2026-10-25 |
 | OpenF1 during a live F1 session | Real-time data needs a paid key | Historical requests also return 401 | 2026-10-25 |
 | Replayer start | | 20 seconds to 4 minutes from run to first event, slowest on the first run in a new project | 2026-10-26 |
+| `AI.GENERATE` `output_schema` on images | Returns the columns of the schema | A `STRING` field sometimes received the model's reasoning, for 2 to 3 of 10 photos, even with `"thinkingLevel": "LOW"`. A schema of `ARRAY<STRING>` fields only was clean in 30 of 30 reads. | 2026-10-27 |
+| Car numbers read from photos | | Wrong for 3 of 10 cars, with numbers from past seasons, so the query does not ask for them | 2026-10-27 |
+| Object table custom metadata | | GCS custom metadata on each file appears in the `metadata` column | 2026-10-27 |
+| F1 team radio recordings | | The recording URLs that OpenF1 lists answer 403, so the demo has no radio | 2026-10-27 |
 
 ## Navigation
 

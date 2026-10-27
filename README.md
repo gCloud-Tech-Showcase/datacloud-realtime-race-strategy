@@ -8,10 +8,13 @@ There is no stream processor to run and no model to train. The rules are SQL, an
 - **Moments in seconds:** continuous queries flag safety cars, pit stops and rain 3 to 6 seconds after the event lands (verified on 2026-10-25)
 - **A call per moment:** Gemini answers each safety car, rain start and gap closing with the cars that should box or stay out
 - **A pit wall:** a private web app with a timing tower and a card for each moment with Gemini's call, a **Start race** button, and the continuous queries stopped for you when the replay ends
+- **Photos as rows:** an object table over one photo per team, and the same `AI.GENERATE` reads the colours and sponsors on each car
 
 See [`docs/`](docs/README.md) for the step-by-step guide and [`docs/quick.md`](docs/quick.md) for copy-paste commands.
 
 OpenF1 is an unofficial project and is not associated with the Formula 1 companies. This repo contains no F1 data: `tofu apply` downloads it into your project.
+
+The car photos are by Eustace Bagge on [Wikimedia Commons](https://commons.wikimedia.org), under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0). [`media/car_photos.json`](media/car_photos.json) links each one. `tofu apply` downloads resized copies, and the pit wall credits them.
 
 ## Architecture
 
@@ -90,16 +93,16 @@ Everything regional is in `us-central1`. BigQuery is in the `US` multi-region.
 
 | Resource | Notes |
 | --- | --- |
-| Bucket `<project>-race-data` | The race, downloaded from OpenF1 during the apply |
+| Bucket `<project>-race-data` | The race, downloaded from OpenF1 during the apply, and one car photo per team from Wikimedia Commons |
 | Topics `race-events`, `race-moments` | Every race event, and the moments the continuous queries flag |
 | Topic `race-events-dead-letter` | Messages that BigQuery rejected 5 times |
 | BigQuery subscriptions `race-events-bq`, `race-moments-bq` | Land the topics in `raw.raw_events` and `serving.moments` |
 | `-demo` pull subscriptions | One per topic, so you can read the messages yourself. Nothing else reads them. |
-| BigQuery datasets `raw`, `serving` | `raw_events`, and `moments` and `calls` |
+| BigQuery datasets `raw`, `serving` | `raw_events` and the object table `car_photos`, and `moments`, `calls` and `cars` |
 | Reservation `continuous-queries` | Enterprise edition, no baseline, autoscaling to 50 slots, with a `CONTINUOUS` assignment |
 | Cloud Run job `replayer` | Replays the race to `race-events` |
 | Cloud Run services `strategist`, `pitwall` | The calls, and the web app. Neither allows public access. |
-| BigQuery connection `vertex-ai-connection` | Lets `AI.GENERATE` call Gemini |
+| BigQuery connection `vertex-ai-connection` | Lets `AI.GENERATE` call Gemini, and reads the car photos for the object table |
 | Saved queries `00 Check: replays so far`, `02 Events: ...` and 7 more | Under **BigQuery Studio > Queries**, one per `queries/*.sql` |
 | Notebooks `01 Race Strategy`, `Verify` | Under **BigQuery Studio > Notebooks**, one per `notebooks/*.ipynb` |
 | Runtime template `F1 Pit Wall: Real-Time Race Strategy notebooks` | Colab Enterprise runtime for the notebooks, on the `notebooks` network with no public IP. It stops after 1 hour idle. |

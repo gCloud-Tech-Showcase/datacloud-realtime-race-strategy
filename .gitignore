@@ -10,6 +10,7 @@ crash.*.log
 
 # --- Credentials / secrets ---
 *.json
+!media/car_photos.json
 *.env
 .env
 

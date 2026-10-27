@@ -18,6 +18,7 @@ PROJECT_ID=<your-project-id>
 | 3 | Read the two continuous queries | Safety cars, pit stops and rain within seconds, gap closing within a minute |
 | 4 | Read the strategy calls | One call per safety car, rain start and gap closing |
 | 5 | Prove it | Every moment the race contains, flagged once |
+| 6 (optional) | Read the cars in the photos | Colours and sponsors for each team, from one photo each |
 | Stop | Cancel the continuous queries | Nothing billing for slots |
 
 ---
@@ -178,6 +179,40 @@ Every row says `ok = true`. If one says `false`, a continuous query missed a mom
 
 ---
 
+## Step 6 (optional): Read the cars in the photos
+
+Files can be rows too. The apply downloaded one photo per team into the race-data bucket, and `raw.car_photos` is an object table over them: one row per file, with its metadata and an ObjectRef in `ref`. The photos stay outside the live race. Nothing in Steps 1 to 5 reads them.
+
+Open the saved query **06 Cars: what Gemini reads in a photo**. It passes each `ref` to the same `AI.GENERATE` function that the strategist uses, asks for the livery colours and the sponsors, and writes the answers to `serving.cars`. The apply already ran it once. Run it to read the photos again, which makes 10 Gemini requests.
+
+```sql
+AI.GENERATE(
+  ('This is a photo of a 2025 Formula 1 car. '
+    || 'livery_colours: up to 3 main colours of the car. '
+    || 'sponsors: every brand name you can read on the car, as printed.', ref),
+  connection_id => '<project>.us.vertex-ai-connection',
+  endpoint => '.../models/gemini-3.8-flash',
+  model_params => JSON '{"generationConfig": {"thinkingConfig": {"thinkingLevel": "LOW"}}}',
+  output_schema => 'livery_colours ARRAY<STRING>, sponsors ARRAY<STRING>'
+)
+```
+
+| team | colours | sponsors_read | sponsors |
+| --- | --- | --- | --- |
+| McLaren | orange, black | 13 | Dropbox, Dash, DELL Technologies, Gemini, avenga, okta, CISCO, OKX, ... |
+| Red Bull Racing | navy blue, red, yellow | 11 | Mobil 1, HONDA, Red Bull, ORACLE, ROKT, 1Password, RAUCH, ... |
+| Williams | blue, black, white | 12 | KOMATSU, britto, Gulf, ATLASSIAN, DURACELL, kraken, ... |
+
+*Sample output from 2026-10-27. Gemini may read a slightly different list each time.*
+
+The `team` column comes from each photo's metadata, not from Gemini, so a misread never puts the wrong photo next to a car. The query asks only for lists: a plain text field sometimes received the model's reasoning instead of an answer.
+
+On the pit wall, each car in the timing tower has its photo. Hover it to see what Gemini read. The page gets the photos from the private bucket through `OBJ.GET_ACCESS_URL`, which signs a read URL for 6 hours, and credits the photographer under the table.
+
+The photos are from the 2025 Italian Grand Prix, by Eustace Bagge on Wikimedia Commons, under CC BY 4.0. Ferrari raced a special livery at that race, so its car looks different from the one in the replay.
+
+---
+
 ## Stop
 
 The reservation bills while a continuous query runs. The pit wall cancels both a minute after the replay ends, if the page is still open. Otherwise press **Stop queries** on the pit wall, or run the saved query **99 Stop: cancel the continuous queries**. If you started them from the notebook, cancel them from the notebook.
@@ -192,6 +227,7 @@ The reservation bills while a continuous query runs. The pit wall cancels both a
 | Spot a moment in seconds, in SQL | BigQuery continuous queries | The rule is a `WHERE` clause that an analyst can read and change |
 | Aggregate over time on a stream | `TUMBLE` windows (Preview) | Trends such as a closing gap, with no stream processor to run |
 | Make a judgement call from data | `AI.GENERATE` with Gemini | A decision in seconds, from the same query that gathers the facts |
+| Query files like rows | Object tables and ObjectRef | Photos, documents or audio in Cloud Storage, read by the same SQL function |
 
 ---
 

@@ -162,6 +162,20 @@ run_query 05-proof
 
 ---
 
+## 8b. What Gemini reads in the car photos
+
+Saved query **06 Cars: what Gemini reads in a photo** reads one photo per team again (10 Gemini requests) and lists the colours and sponsors:
+
+```bash
+run_query 06-cars
+```
+
+```text
+McLaren | orange, black | 13 | Dropbox, Dash, DELL Technologies, Gemini, avenga, okta, CISCO, OKX, ...
+```
+
+---
+
 ## 9. Check the dead-letter topic
 
 Must print nothing. A message here is an event that BigQuery rejected 5 times.

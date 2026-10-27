@@ -42,9 +42,13 @@ expect_ready() {
   for sub in race-events-bq race-moments-bq race-moments-strategist race-events-demo race-moments-demo; do
     check "subscription ${sub}" gcloud pubsub subscriptions describe "$sub" --project="$PROJECT"
   done
-  for table in raw.raw_events serving.moments serving.calls; do
+  check "car photos in the bucket" \
+    gcloud storage ls "gs://${PROJECT}-race-data/media/cars/mclaren.jpg" --project="$PROJECT"
+  for table in raw.raw_events serving.moments serving.calls raw.car_photos serving.cars; do
     check "table ${table}" bq --project_id="$PROJECT" show "$table"
   done
+  [[ "$(bq_value "SELECT COUNT(*) FROM \`${PROJECT}.serving.cars\` WHERE status = '' AND ARRAY_LENGTH(sponsors) > 0")" -ge 10 ]] \
+    && pass "a reading for every car photo" || fail "a reading for every car photo"
   [[ "$(bq --project_id="$PROJECT" ls --reservation_assignment --location=US --format=json 2>/dev/null \
     | grep -c '"jobType": *"CONTINUOUS"')" -ge 1 ]] \
     && pass "CONTINUOUS reservation assignment" || fail "CONTINUOUS reservation assignment"
