@@ -63,10 +63,11 @@ locals {
       ] },
       { name = "car-moments-name-a-car", dimension = "VALIDITY", kind = "row", sql = "moment NOT IN ('PIT_STOP', 'GAP_CLOSING') OR driver_number IS NOT NULL" },
       # 05 Proof as a rule, for every replay that has moments: each pit stop in
-      # the raw events was flagged once.
+      # the raw events was flagged once. Pub/Sub can deliver a message twice, so
+      # each pit record counts once.
       { name = "every-pit-stop-flagged", dimension = "CONSISTENCY", kind = "sql", sql = <<-EOT
           SELECT e.run_id
-          FROM (SELECT run_id, COUNT(*) AS pits FROM ${local.events_table} WHERE event_type = 'pit' GROUP BY run_id) AS e
+          FROM (SELECT run_id, COUNT(DISTINCT TO_JSON_STRING(STRUCT(driver_number, event_ts))) AS pits FROM ${local.events_table} WHERE event_type = 'pit' GROUP BY run_id) AS e
           JOIN (
             SELECT run_id, COUNT(DISTINCT IF(moment = 'PIT_STOP', TO_JSON_STRING(STRUCT(driver_number, event_ts)), NULL)) AS flagged
             FROM $${data()} GROUP BY run_id

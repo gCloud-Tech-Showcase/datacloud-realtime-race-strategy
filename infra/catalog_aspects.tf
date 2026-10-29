@@ -15,7 +15,7 @@ locals {
 
   moment_rules = {
     fast_rules     = "queries/03a-moments-fast.sql: one race event is enough. SAFETY_CAR from race control, PIT_STOP from a pit record, RAIN_STARTED when rainfall goes from 0 to 1."
-    windowed_rules = "queries/03b-moments-windowed.sql: GAP_CLOSING when a car's interval to the car ahead shrinks by at least ${var.gap_closing_seconds} s within one ${var.window_seconds}-second TUMBLE window."
+    windowed_rules = "queries/03b-moments-windowed.sql: GAP_CLOSING when a car's interval to the car ahead shrinks by at least ${var.gap_closing_seconds} s within one ${var.window_seconds}-second TUMBLE window and ends above 0 and under 1 s."
     window_time    = "TUMBLE windows close on arrival time in BigQuery (_CHANGE_TIMESTAMP), not race time. At replay speed ${var.replay_speed}, one window covers ${var.window_seconds * tonumber(var.replay_speed)} seconds of racing."
     delivery       = "Both queries publish to the race-moments topic with EXPORT DATA. The race-moments-bq subscription writes this table. A moment can appear twice after a continuous query restarts."
     observed_lag   = "Event landed to moment on Pub/Sub, replay of 2026-10-28: fast rules 0.2 to 5.8 s, windowed rule 25.5 to 73.6 s."

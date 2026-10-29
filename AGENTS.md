@@ -81,8 +81,10 @@ Each line is a guardrail. The reasons are in comments next to the code. The obse
 - **Start continuous queries only while events are landing,** and start them 10 minutes back (`CURRENT_TIMESTAMP() - INTERVAL 10 MINUTE`). On an idle table, or with a shorter lookback, they fail with "Invalid timestamp bounds".
 - **Never join two `TUMBLE` aggregations with `UNION ALL`** in one continuous query. It emits nothing.
 - **Send `payload` as a JSON string,** never a nested object. The BigQuery subscription rejects an object for a `JSON` column, and the message goes to `race-events-dead-letter`.
-- **Never publish a record before it was known.** A lap publishes when it ends, and a stint without `lap_end`. The replayer adds `previous_rainfall` to weather records.
+- **Never publish a record before it was known.** A lap publishes when it ends, and a stint without `lap_end`, when the car leaves the pit lane (pit `date` plus `lane_duration`). OpenF1's `lap_start` for a new stint is the pit lap, and its start is about two minutes too early. The replayer adds `previous_rainfall` to weather records.
+- **Keep only drivers from the snapshot** in `actions`. The response schema limits the action and the tyre, not the driver code, so `queries/04-strategist-call.sql` filters it against the snapshot.
 - **Answer each moment once.** Pub/Sub redelivers, and the 10-minute lookback can flag a moment twice. The strategist checks `serving.calls` first and runs one request at a time.
+- **Count each raw record once.** The BigQuery subscription can write a message twice (884 of 195,235 on 2026-10-29), so a query that counts `raw_events` counts distinct records, as `05-proof.sql` and the `every-pit-stop-flagged` rule do.
 - **Keep the strategist's variables marker** (`-- (the strategist service sets the five variables here)`) in `queries/04-strategist-call.sql`. The service inserts its `SET` statements there.
 - **Match car photos by the `team` in their metadata,** never by what Gemini reads. Ask Gemini for lists only: a plain text field sometimes received its reasoning, and car numbers came from past seasons.
 - **Credit every car photo.** Add new photos to `media/car_photos.json` with author, license and source, and keep the pit wall's credits line. Use only CC BY or public domain photos.
@@ -97,7 +99,7 @@ Each line is a guardrail. The reasons are in comments next to the code. The obse
 - **Add a new moment to the `moment-is-known` quality rule** in `infra/data_scans.tf`, or its scan fails.
 - **Keep `data_product_groups` optional.** Readers have no groups, so every group must be skippable and the default must create the products without any. Real group emails go in a gitignored tfvars file, never in a committed file.
 - **Find the data agent by its display name.** Any edit to `infra/agent.tf` creates a new agent under a new ID, because the provider cannot update one in place.
-- **Record the retirement date next to the Gemini model ID** in `queries/04-strategist-call.sql`. The migration is tracked in [#2](https://github.com/gCloud-Tech-Showcase/datacloud-realtime-race-strategy/issues/2).
+- **Record the retirement date next to the Gemini model ID** in `queries/04-strategist-call.sql`, and check it before it comes due.
 
 ## Teardown
 

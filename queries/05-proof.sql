@@ -8,23 +8,27 @@ DECLARE target_run STRING DEFAULT (
   ORDER BY publish_time DESC LIMIT 1);
 
 WITH expected AS (
-  SELECT 'SAFETY_CAR' AS moment, COUNT(*) AS n
+  -- Pub/Sub can deliver a message twice, so count each record once.
+  SELECT 'SAFETY_CAR' AS moment, COUNT(DISTINCT event_ts) AS n
   FROM `${project_id}.raw.raw_events`
   WHERE run_id = target_run AND event_type = 'race_control'
     AND JSON_VALUE(payload, '$.category') = 'SafetyCar'
     AND JSON_VALUE(payload, '$.message') LIKE '%DEPLOYED%'
   UNION ALL
-  SELECT 'PIT_STOP', COUNT(*)
+  SELECT 'PIT_STOP', COUNT(DISTINCT TO_JSON_STRING(STRUCT(driver_number, event_ts)))
   FROM `${project_id}.raw.raw_events`
   WHERE run_id = target_run AND event_type = 'pit'
   UNION ALL
   SELECT 'RAIN_STARTED', COUNTIF(rainfall = 1 AND previous = 0)
   FROM (
     SELECT
-      SAFE.INT64(payload.rainfall) AS rainfall,
-      LAG(SAFE.INT64(payload.rainfall)) OVER (ORDER BY event_ts) AS previous
-    FROM `${project_id}.raw.raw_events`
-    WHERE run_id = target_run AND event_type = 'weather'
+      rainfall,
+      LAG(rainfall) OVER (ORDER BY event_ts) AS previous
+    FROM (
+      SELECT DISTINCT event_ts, SAFE.INT64(payload.rainfall) AS rainfall
+      FROM `${project_id}.raw.raw_events`
+      WHERE run_id = target_run AND event_type = 'weather'
+    )
   )
 ),
 

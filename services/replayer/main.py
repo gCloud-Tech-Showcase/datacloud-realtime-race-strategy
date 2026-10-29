@@ -6,8 +6,8 @@ publishes the window itself at SPEED times real time. Every message carries
 RUN_ID, so repeated replays stay apart in BigQuery.
 
 A record is published at the moment it became known during the race, never
-earlier: a lap when it ends, and a stint without its last lap. Otherwise the
-strategist could see the future.
+earlier: a lap when it ends, and a stint without its last lap, when the car
+leaves the pit lane. Otherwise the strategist could see the future.
 
 Each weather record also carries previous_rainfall, the reading before it,
 which the replayer adds. A one-row rule can then spot the change from dry to
@@ -88,14 +88,28 @@ def build_events(bucket, session_key, start, end):
             known_at = parse_ts(record["date_start"]) + timedelta(seconds=record["lap_duration"])
             place(known_at, "laps", record)
 
-    # A stint is known when it starts. Its last lap is known only once the next
-    # stint starts, so lap_end is dropped unless that already happened.
+    # A stint is known when it starts: the start of the race for the first one,
+    # and the moment the car leaves the pit lane for the others. OpenF1 gives a
+    # new stint the lap of the pit stop as lap_start, and the car pits partway
+    # through that lap, so the start of the lap would show the new tyres about
+    # two minutes early (seen on 2026-10-29). Its last lap is known only once
+    # the next stint starts, so lap_end is dropped unless that already happened.
+    pit_exit = {}
+    for record in read_stream(bucket, session_key, "pit"):
+        if record.get("lap_number") is not None:
+            pit_exit[(record["driver_number"], record["lap_number"])] = parse_ts(
+                record["date"]
+            ) + timedelta(seconds=record.get("lane_duration") or 0)
+
+    def stint_known_at(driver_number, lap):
+        return pit_exit.get((driver_number, lap)) or lap_start.get((driver_number, lap))
+
     for record in read_stream(bucket, session_key, "stints"):
-        known_at = lap_start.get((record["driver_number"], record["lap_start"]))
+        known_at = stint_known_at(record["driver_number"], record["lap_start"])
         if known_at is None:
             continue
         stint = dict(record)
-        next_start = lap_start.get((record["driver_number"], (record.get("lap_end") or 0) + 1))
+        next_start = stint_known_at(record["driver_number"], (record.get("lap_end") or 0) + 1)
         if next_start is None or next_start >= start or known_at >= start:
             stint.pop("lap_end", None)
         place(known_at, "stints", stint)

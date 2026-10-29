@@ -88,7 +88,7 @@ Open the saved query **03a Moments: fast rules (continuous query)**. It reads ev
 | `PIT_STOP` | A pit event |
 | `RAIN_STARTED` | A weather reading with `rainfall = 1` after one with `rainfall = 0` |
 
-Open **03b Moments: gap closing (continuous query, windowed)**. It groups the interval readings of each car into 30-second `TUMBLE` windows, and flags a car whose gap to the car ahead shrinks by a second or more and ends inside a second.
+Open **03b Moments: gap closing (continuous query, windowed)**. It groups the interval readings of each car into 30-second `TUMBLE` windows, and flags a car whose gap to the car ahead shrinks by a second or more and ends inside a second. A gap of exactly 0, which the feed sends for the car in front, does not count.
 
 The pit wall started both. To start one yourself, open it in BigQuery Studio, choose **More > Query settings > Continuous query**, set the service account to `cq-runner@<project>.iam.gserviceaccount.com`, and run it.
 
@@ -136,7 +136,7 @@ model_params => JSON '''{
 }'''
 ```
 
-The response schema makes Gemini answer with typed fields, and the enums keep the action and the tyre to values the pit wall knows. The script turns the answer into `actions`, an array of driver, action, tyre and reason, and `call_text`, the same answer as one line per car. The strategist writes both to `serving.calls`.
+The response schema makes Gemini answer with typed fields, and the enums keep the action and the tyre to values the pit wall knows. The script turns the answer into `actions`, an array of driver, action, tyre and reason, keeping only drivers who are in the snapshot, and `call_text`, the same answer as one line per car. The strategist writes both to `serving.calls`.
 
 Then read all the calls of the replay. Saved query **04b Calls: the strategist's answers**:
 

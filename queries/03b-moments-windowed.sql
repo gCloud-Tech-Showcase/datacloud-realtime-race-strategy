@@ -41,5 +41,7 @@ EXPORT DATA OPTIONS (
   )) AS message
   FROM windows
   -- The gap shrinks by at least gap_closing_seconds and ends inside DRS range.
-  WHERE gap_first - gap_last >= ${gap_closing_seconds} AND gap_last < 1.0
+  -- A gap of exactly 0 is how the feed marks the car in front, so a change of
+  -- leader is not a closing gap (seen on 2026-10-29).
+  WHERE gap_first - gap_last >= ${gap_closing_seconds} AND gap_last > 0 AND gap_last < 1.0
 );

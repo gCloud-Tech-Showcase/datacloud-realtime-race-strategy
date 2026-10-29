@@ -111,7 +111,7 @@ answer AS (
       connection_id => '${project_id}.us.vertex-ai-connection',
       -- gemini-3.8-flash: retirement date "September 2, 2027 or later", from
       -- https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/3-8-flash
-      -- (read on 2026-10-25). Migration tracked in issue #2.
+      -- (read on 2026-10-25).
       endpoint => 'https://aiplatform.googleapis.com/v1/projects/${project_id}/locations/global/publishers/google/models/gemini-3.8-flash',
       model_params => JSON '''{
         "systemInstruction": {"parts": [{"text": "You are the race strategist on an F1 pit wall. Use only the cars, gaps and tyres in the context. Do not invent drivers or data. Return at most 5 cars that should act: if the moment names a car, that car first and then its rivals around it. If no car should change plan, return an empty list."}]},
@@ -150,6 +150,9 @@ typed AS (
         NULLIF(JSON_VALUE(c, '$.tyre'), 'NONE') AS tyre,
         JSON_VALUE(c, '$.reason') AS reason
       FROM UNNEST(JSON_QUERY_ARRAY(SAFE.PARSE_JSON(call.result), '$.calls')) AS c WITH OFFSET AS i
+      -- The schema limits the action and the tyre, not the driver: keep only
+      -- cars that are in the snapshot.
+      WHERE JSON_VALUE(c, '$.driver') IN (SELECT code FROM drivers)
       ORDER BY i
     ) AS actions
   FROM answer

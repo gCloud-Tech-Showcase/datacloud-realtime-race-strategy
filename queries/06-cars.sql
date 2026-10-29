@@ -31,7 +31,7 @@ answers AS (
         || 'livery_colours: up to 3 main colours of the car. '
         || 'sponsors: every brand name you can read on the car, as printed.', ref),
       connection_id => '${project_id}.us.vertex-ai-connection',
-      -- Gemini 3.8 Flash retires on September 2, 2027 or later (#2).
+      -- Gemini 3.8 Flash retires on September 2, 2027 or later.
       endpoint => 'https://aiplatform.googleapis.com/v1/projects/${project_id}/locations/global/publishers/google/models/gemini-3.8-flash',
       model_params => JSON '{"generationConfig": {"thinkingConfig": {"thinkingLevel": "LOW"}}}',
       output_schema => 'livery_colours ARRAY<STRING>, sponsors ARRAY<STRING>'
