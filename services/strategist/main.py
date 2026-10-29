@@ -73,8 +73,8 @@ def already_answered(moment: dict) -> bool:
     return any(True for _ in job.result())
 
 
-def make_call(moment: dict) -> tuple[int | None, str, str | None]:
-    """Return (race lap, call text, error). Error is None when Gemini answered."""
+def make_call(moment: dict) -> tuple[int | None, str, list[dict], str | None]:
+    """Return (race lap, call text, typed actions, error). Error is None when Gemini answered."""
     job = bq.query(
         SCRIPT,
         job_config=bigquery.QueryJobConfig(
@@ -88,12 +88,12 @@ def make_call(moment: dict) -> tuple[int | None, str, str | None]:
         ),
     )
     row = next(iter(job.result()))
-    call = row["call"] or {}
-    status = call.get("status") or ""
-    text = call.get("result") or ""
+    status = row["status"] or ""
+    text = row["call_text"] or ""
+    actions = [dict(action) for action in row["actions"] or []]
     if not status and not text:
         status = "Gemini returned no text"
-    return row["race_lap"], text, status or None
+    return row["race_lap"], text, actions, status or None
 
 
 @app.post("/")
@@ -114,12 +114,12 @@ def handle_push():
 
     started = time.monotonic()
     try:
-        lap, call_text, error = make_call(moment)
+        lap, call_text, actions, error = make_call(moment)
     except Exception as exc:
         # Top-level isolation point: any failure becomes a visible FAILED call
         # instead of a silent retry loop.
         logger.exception("strategist query failed for %s with model %s", moment["moment"], MODEL)
-        lap, call_text, error = moment.get("lap"), "", str(exc)
+        lap, call_text, actions, error = moment.get("lap"), "", [], str(exc)
 
     if error:
         logger.error(
@@ -138,6 +138,7 @@ def handle_push():
                 "event_ts": moment["event_ts"],
                 "status": "FAILED" if error else "OK",
                 "call_text": call_text,
+                "actions": actions,
                 "error": error,
                 "model": MODEL,
                 "latency_ms": int((time.monotonic() - started) * 1000),

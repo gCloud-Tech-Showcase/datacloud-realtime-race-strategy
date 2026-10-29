@@ -86,36 +86,84 @@ context AS (
     (SELECT ARRAY_AGG(SAFE.INT64(payload.rainfall) ORDER BY event_ts DESC LIMIT 1)[OFFSET(0)]
       FROM ev WHERE event_type = 'weather') AS raining
   FROM field
+),
+
+-- The system instruction holds the role and the rules. The prompt holds only
+-- this moment's facts. responseSchema makes Gemini answer with typed fields,
+-- and the enums limit the action and the tyre to values the pit wall knows.
+answer AS (
+  SELECT
+    race_lap,
+    AI.GENERATE(
+      CONCAT(
+        '<context>\n',
+        'Race: 57 laps. Current lap: ', IFNULL(CAST(race_lap AS STRING), 'unknown'), '. Track: ',
+        IF(raining = 1, 'raining', 'dry'), '.\n',
+        'Field (position, driver, gap to leader, interval to car ahead, tyre compound, tyre age, last 3 lap times in seconds):\n',
+        -- Before a replay there are no cars, and a NULL here would make the
+        -- whole prompt NULL.
+        IFNULL(field_text, 'No cars recorded yet.'), '\n',
+        '</context>\n',
+        '<task>Based on the information above, the moment is: ', moment_name,
+        IFNULL(CONCAT(' for ', (SELECT code FROM drivers WHERE driver_number = moment_driver),
+          ' (#', CAST(moment_driver AS STRING), ')'), ''),
+        ' (', moment_detail, '). Give the strategy call.</task>'),
+      connection_id => '${project_id}.us.vertex-ai-connection',
+      -- gemini-3.8-flash: retirement date "September 2, 2027 or later", from
+      -- https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/3-8-flash
+      -- (read on 2026-10-25). Migration tracked in issue #2.
+      endpoint => 'https://aiplatform.googleapis.com/v1/projects/${project_id}/locations/global/publishers/google/models/gemini-3.8-flash',
+      model_params => JSON '''{
+        "systemInstruction": {"parts": [{"text": "You are the race strategist on an F1 pit wall. Use only the cars, gaps and tyres in the context. Do not invent drivers or data. Return at most 5 cars that should act: if the moment names a car, that car first and then its rivals around it. If no car should change plan, return an empty list."}]},
+        "generationConfig": {
+          "thinkingConfig": {"thinkingLevel": "LOW"},
+          "responseMimeType": "application/json",
+          "responseSchema": {
+            "type": "OBJECT",
+            "required": ["calls"],
+            "properties": {"calls": {"type": "ARRAY", "maxItems": 5, "items": {
+              "type": "OBJECT",
+              "required": ["driver", "action", "tyre", "reason"],
+              "propertyOrdering": ["driver", "action", "tyre", "reason"],
+              "properties": {
+                "driver": {"type": "STRING", "description": "Three-letter driver code from the context"},
+                "action": {"type": "STRING", "enum": ["BOX", "STAY OUT"]},
+                "tyre": {"type": "STRING", "enum": ["SOFT", "MEDIUM", "HARD", "INTERMEDIATE", "WET", "NONE"], "description": "Tyre to fit when boxing, NONE when staying out"},
+                "reason": {"type": "STRING", "maxLength": 120, "description": "Why, in under 15 words"}
+              }
+            }}}
+          }
+        }
+      }'''
+    ) AS call
+  FROM context
+),
+
+typed AS (
+  SELECT
+    race_lap,
+    call.status,
+    ARRAY(
+      SELECT AS STRUCT
+        JSON_VALUE(c, '$.driver') AS driver,
+        JSON_VALUE(c, '$.action') AS action,
+        NULLIF(JSON_VALUE(c, '$.tyre'), 'NONE') AS tyre,
+        JSON_VALUE(c, '$.reason') AS reason
+      FROM UNNEST(JSON_QUERY_ARRAY(SAFE.PARSE_JSON(call.result), '$.calls')) AS c WITH OFFSET AS i
+      ORDER BY i
+    ) AS actions
+  FROM answer
 )
 
+-- actions is the typed answer. call_text is the same answer as one line per
+-- car ("VER: BOX for INTERMEDIATE - reason"), which the pit wall shows.
 SELECT
   race_lap,
-  AI.GENERATE(
-    CONCAT(
-      '<role>You are the race strategist on an F1 pit wall.</role>\n',
-      '<constraints>\n',
-      '- Use only the cars, gaps and tyres in the context. Do NOT invent drivers or data.\n',
-      '- At most 5 short lines, one per car that should act. Each line: driver code, BOX or STAY OUT, the tyre to fit if boxing, and why.\n',
-      '- If the moment names a car, start with that car and its rivals around it.\n',
-      '- If no car should change plan, say so in one line.\n',
-      '</constraints>\n',
-      '<context>\n',
-      'Race: 57 laps. Current lap: ', IFNULL(CAST(race_lap AS STRING), 'unknown'), '. Track: ',
-      IF(raining = 1, 'raining', 'dry'), '.\n',
-      'Field (position, driver, gap to leader, interval to car ahead, tyre compound, tyre age, last 3 lap times in seconds):\n',
-      -- Before a replay there are no cars, and a NULL here would make the
-      -- whole prompt NULL.
-      IFNULL(field_text, 'No cars recorded yet.'), '\n',
-      '</context>\n',
-      '<task>Based on the information above, the moment is: ', moment_name,
-      IFNULL(CONCAT(' for ', (SELECT code FROM drivers WHERE driver_number = moment_driver),
-        ' (#', CAST(moment_driver AS STRING), ')'), ''),
-      ' (', moment_detail, '). Give the strategy call.</task>'),
-    connection_id => '${project_id}.us.vertex-ai-connection',
-    -- gemini-3.8-flash: retirement date "September 2, 2027 or later", from
-    -- https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/3-8-flash
-    -- (read on 2026-10-25). Migration tracked in issue #2.
-    endpoint => 'https://aiplatform.googleapis.com/v1/projects/${project_id}/locations/global/publishers/google/models/gemini-3.8-flash',
-    model_params => JSON '{"generationConfig": {"thinkingConfig": {"thinkingLevel": "LOW"}}}'
-  ) AS call
-FROM context;
+  status,
+  actions,
+  IF(status != '', NULL, IFNULL(
+    (SELECT STRING_AGG(FORMAT('%s: %s%s - %s', a.driver, a.action,
+       IF(a.action = 'BOX' AND a.tyre IS NOT NULL, CONCAT(' for ', a.tyre), ''), a.reason), '\n')
+     FROM UNNEST(actions) AS a),
+    'No car should change plan.')) AS call_text
+FROM typed;

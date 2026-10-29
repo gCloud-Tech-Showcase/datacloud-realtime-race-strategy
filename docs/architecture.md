@@ -184,6 +184,8 @@ OpenF1 interval records carry no lap, so `lap` is empty for a gap closing. The p
 | Replayer start | | 20 seconds to 4 minutes from run to first event, slowest on the first run in a new project | 2026-10-26 |
 | `AI.GENERATE` `output_schema` on images | Returns the columns of the schema | A `STRING` field sometimes received the model's reasoning, for 2 to 3 of 10 photos, even with `"thinkingLevel": "LOW"`. A schema of `ARRAY<STRING>` fields only was clean in 30 of 30 reads. | 2026-10-27 |
 | Car numbers read from photos | | Wrong for 3 of 10 cars, with numbers from past seasons, so the query does not ask for them | 2026-10-27 |
+| `AI.GENERATE` system instruction | `model_params` matches the `GenerateContent` request body | `systemInstruction` is not an argument of `AI.GENERATE` (the signature is `prompt`, `connection_id`, `endpoint`, `model_params`, `output_schema`, `request_type`). Inside `model_params` it works. | 2026-10-29 |
+| `output_schema` vs `responseSchema` for the strategy call | Both return structured output | `output_schema` with `STRING` fields returned empty fields and a runaway paragraph in one field. `responseSchema` in `model_params`, with enums and `maxLength`, returned the same 5 cars with valid values in 3 of 3 uncached runs. | 2026-10-29 |
 | Object table custom metadata | | GCS custom metadata on each file appears in the `metadata` column | 2026-10-27 |
 | F1 team radio recordings | | The recording URLs that OpenF1 lists answer 403, so the demo has no radio | 2026-10-27 |
 

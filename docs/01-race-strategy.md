@@ -119,6 +119,25 @@ The `strategist` Cloud Run service receives every moment as a Pub/Sub push. For 
 
 Open the saved query **04 Strategist: the call for one moment**. It is the exact script the service runs, with the lap 47 safety car of the latest replay filled in. Run it to see Gemini make the call from SQL.
 
+The rules sit in a system instruction, and the prompt carries only the snapshot and the moment. Both go in `model_params`, which takes the body of a Gemini `generateContent` request:
+
+```sql
+model_params => JSON '''{
+  "systemInstruction": {"parts": [{"text": "You are the race strategist on an F1 pit wall. ..."}]},
+  "generationConfig": {
+    "responseMimeType": "application/json",
+    "responseSchema": {"type": "OBJECT", "properties": {"calls": {"type": "ARRAY", "maxItems": 5, "items": {
+      "properties": {
+        "driver": {"type": "STRING"},
+        "action": {"type": "STRING", "enum": ["BOX", "STAY OUT"]},
+        "tyre":   {"type": "STRING", "enum": ["SOFT", "MEDIUM", "HARD", "INTERMEDIATE", "WET", "NONE"]},
+        "reason": {"type": "STRING", "maxLength": 120}}}}}}
+  }
+}'''
+```
+
+The response schema makes Gemini answer with typed fields, and the enums keep the action and the tyre to values the pit wall knows. The script turns the answer into `actions`, an array of driver, action, tyre and reason, and `call_text`, the same answer as one line per car. The strategist writes both to `serving.calls`.
+
 Then read all the calls of the replay. Saved query **04b Calls: the strategist's answers**:
 
 ```sql
