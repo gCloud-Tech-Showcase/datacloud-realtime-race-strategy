@@ -91,6 +91,7 @@ Each line is a guardrail. The reasons are in comments next to the code. The obse
 - **Keep the guide's line numbers in step with the files.** `docs/01-race-strategy.md` and `README.md` point at lines in `infra/variables.tf`, `infra/strategist.tf` and `queries/03a-moments-fast.sql`.
 - **Put Knowledge Catalog resources for BigQuery tables in `local.catalog_location`** (`us`), never `var.region`. BigQuery entries live in the dataset's location, and `us-central1` returns 403 for them.
 - **Set the Insights labels inside `queries/07-debrief.sql`.** `CREATE OR REPLACE TABLE` drops labels, and the Insights tab needs the `dataplex-data-documentation-published-*` labels on the table.
+- **Leave `gap-to-leader-is-a-number` failing.** It fails on purpose, to show a failing quality rule, on OpenF1's `+1 LAP` text in a numeric field. Every other rule passes on clean replays, so a new failure is a real problem.
 - **Add a new moment to the `moment-is-known` quality rule** in `infra/data_scans.tf`, or its scan fails.
 - **Find the data agent by its display name.** Any edit to `infra/agent.tf` creates a new agent under a new ID, because the provider cannot update one in place.
 - **Record the retirement date next to the Gemini model ID** in `queries/04-strategist-call.sql`. The migration is tracked in [#2](https://github.com/gCloud-Tech-Showcase/datacloud-realtime-race-strategy/issues/2).

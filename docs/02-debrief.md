@@ -72,14 +72,18 @@ In BigQuery, open `serving.lap_debrief` and its **Data quality** tab. The apply 
 
 | Table | Rules passed | Score | Failed rule |
 | --- | --- | --- | --- |
+| Table | Rules passed | Score | Failed rule |
+| --- | --- | --- | --- |
+| `serving.moments` | 4 of 4 | 100 | |
 | `serving.calls` | 6 of 6 | 100 | |
 | `serving.lap_debrief` | 7 of 7 | 100 | |
-| `raw.raw_events` | 3 of 4 | 75 | `event-type-is-openf1`: 1 hand-published test event of 1.56 million |
-| `serving.moments` | 2 of 4 | 50 | `moment-is-known`: 20 moments from a rule retired during development. `every-pit-stop-flagged`: a tuning replay whose continuous query stopped early. |
+| `raw.raw_events` | 5 of 6 | 83.33 | `gap-to-leader-is-a-number`: 5,298 interval records, on purpose |
 
-*Results from 2026-10-29 in the demo project, which still holds the replays from building the demo. In a new project, complete replays pass every rule.*
+*Results from 2026-10-29, over 6 replays.*
 
-Each rule has a dimension: completeness, validity, uniqueness or consistency. `infra/data_scans.tf` lists them. Two are worth a look:
+Each rule has a dimension: completeness, validity, uniqueness or consistency. `infra/data_scans.tf` lists them. Three are worth a look:
+
+- `raw_events`, **gap-to-leader-is-a-number** (validity) fails on purpose, to show what a failure looks like. OpenF1 sends `gap_to_leader` as text such as `+1 LAP` for a lapped car, about 12% of interval records. The rule lists every record that breaks it: open its failing rows query from the result. Its twin, **gap-to-leader-mostly-numbers**, accepts the known quirk and passes while at least 85% of records carry a number. The same quirk is why `lap_debrief.gap_to_leader_s` is empty for lapped cars.
 
 - `moments`, **every-pit-stop-flagged** (consistency): the saved query **05 Proof** as a rule, checked for every replay in the table instead of the latest one.
 - `calls`, **every-call-answers-a-moment** (consistency): each call points at a moment that exists.

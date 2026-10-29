@@ -9,6 +9,9 @@
 #   serving.calls        profile, quality, insights
 #   serving.lap_debrief  profile, quality, insights
 #
+# Every rule passes on clean replays except gap-to-leader-is-a-number on
+# raw_events, which fails on purpose to show what a failing rule looks like.
+#
 # The saved query 05 Proof checks one replay after it ends. A quality scan
 # checks every replay in the table and keeps a pass or fail record per rule,
 # by dimension, that anyone reading the table can see.
@@ -32,6 +35,7 @@ locals {
   #   non_null, unique  column checks
   #   range, set        column value checks
   #   row               a SQL condition every row must meet
+  #   table             a SQL condition on the whole table, usually an aggregate
   #   sql               a query that returns the failing rows. ${data()} is the table.
   quality_rules = {
     raw_events = [
@@ -42,6 +46,15 @@ locals {
         "car_data", "intervals", "laps", "position", "overtakes", "stints", "race_control", "weather", "pit", "drivers",
       ] },
       { name = "twenty-drivers-per-replay", dimension = "COMPLETENESS", kind = "sql", sql = "SELECT run_id FROM $${data()} WHERE event_type = 'drivers' GROUP BY run_id HAVING COUNT(DISTINCT driver_number) != 20" },
+      # FAILS ON PURPOSE, to show a failing rule. OpenF1 sends gap_to_leader as
+      # text such as "+1 LAP" for a lapped car, about 12% of interval records
+      # (seen on 2026-10-29). This rule expects a number every time and lists
+      # the records that break it. That is why lap_debrief.gap_to_leader_s is
+      # empty for lapped cars.
+      { name = "gap-to-leader-is-a-number", dimension = "VALIDITY", kind = "sql", sql = "SELECT run_id, event_ts, driver_number, JSON_VALUE(payload, '$.gap_to_leader') AS gap_to_leader FROM $${data()} WHERE event_type = 'intervals' AND SAFE_CAST(JSON_VALUE(payload, '$.gap_to_leader') AS FLOAT64) IS NULL" },
+      # The same check, accepting the known quirk: it passes while at least 85%
+      # of interval records carry a number, and fails if that share drops.
+      { name = "gap-to-leader-mostly-numbers", dimension = "VALIDITY", kind = "table", sql = "SAFE_DIVIDE(COUNTIF(event_type = 'intervals' AND SAFE_CAST(JSON_VALUE(payload, '$.gap_to_leader') AS FLOAT64) IS NOT NULL), COUNTIF(event_type = 'intervals')) >= 0.85" },
     ]
     moments = [
       { name = "run-id-present", dimension = "COMPLETENESS", kind = "non_null", column = "run_id" },
@@ -225,6 +238,13 @@ resource "google_dataplex_datascan" "scan" {
 
           dynamic "row_condition_expectation" {
             for_each = rules.value.kind == "row" ? [1] : []
+            content {
+              sql_expression = rules.value.sql
+            }
+          }
+
+          dynamic "table_condition_expectation" {
+            for_each = rules.value.kind == "table" ? [1] : []
             content {
               sql_expression = rules.value.sql
             }
