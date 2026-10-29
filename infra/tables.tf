@@ -44,6 +44,7 @@ resource "google_bigquery_table" "raw_events" {
 resource "google_bigquery_table" "moments" {
   dataset_id          = google_bigquery_dataset.stages["serving"].dataset_id
   table_id            = "moments"
+  labels              = local.insights_labels["moments"]
   description         = "Race moments flagged by the continuous queries"
   deletion_protection = false
   clustering          = ["run_id", "moment"]
@@ -66,6 +67,7 @@ resource "google_bigquery_table" "moments" {
 resource "google_bigquery_table" "calls" {
   dataset_id          = google_bigquery_dataset.stages["serving"].dataset_id
   table_id            = "calls"
+  labels              = local.insights_labels["calls"]
   description         = "Strategy calls made by the strategist, one per moment"
   deletion_protection = false
   clustering          = ["run_id"]

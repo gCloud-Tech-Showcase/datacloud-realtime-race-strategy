@@ -31,3 +31,13 @@ output "pit_wall_proxy_command" {
   description = "Run this, then open http://localhost:8080 to see the pit wall"
   value       = "gcloud run services proxy ${google_cloud_run_v2_service.pitwall.name} --region=${var.region} --project=${var.project_id}"
 }
+
+output "data_agent_name" {
+  description = "The Conversational Analytics data agent. Open BigQuery > Agents and pick it by its display name."
+  value       = google_gemini_data_analytics_data_agent.race_engineer.display_name
+}
+
+output "data_products_url" {
+  description = "Knowledge Catalog > Data products, in the console"
+  value       = "https://console.cloud.google.com/dataplex/data-products?project=${var.project_id}"
+}

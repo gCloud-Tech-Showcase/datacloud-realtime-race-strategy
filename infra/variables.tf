@@ -95,3 +95,9 @@ variable "race_name" {
   type        = string
   default     = "2025 Australian Grand Prix"
 }
+
+variable "data_product_owner" {
+  description = "Email listed as the owner of the two data products. Empty means the account running tofu apply, or the scanner service account if that email is not available."
+  type        = string
+  default     = ""
+}

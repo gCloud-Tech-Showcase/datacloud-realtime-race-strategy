@@ -233,6 +233,8 @@ The reservation bills while a continuous query runs. The pit wall cancels both a
 
 ## What's Next
 
+Turn the replay into a lap-by-lap debrief, govern it in Knowledge Catalog and ask a data agent about the race: [Post-Race Debrief](02-debrief.md).
+
 Before each experiment, predict what the pit wall will show. Then run a new replay with **Start race**.
 
 ### Flag more gap closings
@@ -295,4 +297,4 @@ Apply as above. The window takes about half as long. The `TUMBLE` windows still 
 
 ## Navigation
 
-[← Overview](README.md) | [Quick Reference](quick.md) | [Architecture](architecture.md)
+[← Overview](README.md) | [Post-Race Debrief →](02-debrief.md) | [Quick Reference](quick.md) | [Architecture](architecture.md)

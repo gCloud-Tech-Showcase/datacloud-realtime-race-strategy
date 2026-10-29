@@ -31,6 +31,12 @@ check() {
 bq_value() {
   bq --project_id="$PROJECT" query --use_legacy_sql=false --location=US --format=csv --quiet "$1" | tail -1
 }
+# GET a Google API with the CLI login. Fails on an HTTP error.
+gcloud_api() {
+  curl -sf -H "Authorization: Bearer $(gcloud auth print-access-token)" -H "x-goog-user-project: ${PROJECT}" "$1"
+}
+# Knowledge Catalog keeps BigQuery metadata in the dataset's location.
+CATALOG_LOCATION="$(tf_default dataset_location | tr '[:upper:]' '[:lower:]')"
 
 expect_ready() {
   echo "Checking ${PROJECT} (${REGION})"
@@ -44,11 +50,21 @@ expect_ready() {
   done
   check "car photos in the bucket" \
     gcloud storage ls "gs://${PROJECT}-race-data/media/cars/mclaren.jpg" --project="$PROJECT"
-  for table in raw.raw_events serving.moments serving.calls raw.car_photos serving.cars; do
+  for table in raw.raw_events serving.moments serving.calls raw.car_photos serving.cars serving.lap_debrief; do
     check "table ${table}" bq --project_id="$PROJECT" show "$table"
   done
   [[ "$(bq_value "SELECT COUNT(*) FROM \`${PROJECT}.serving.cars\` WHERE status = '' AND ARRAY_LENGTH(sponsors) > 0")" -ge 10 ]] \
     && pass "a reading for every car photo" || fail "a reading for every car photo"
+  for product in race-telemetry race-strategy; do
+    check "data product ${product}" gcloud_api \
+      "https://dataplex.googleapis.com/v1/projects/${PROJECT}/locations/${CATALOG_LOCATION}/dataProducts/${product}"
+  done
+  for scan in raw-events-quality moments-quality calls-quality lap-debrief-quality; do
+    check "quality scan ${scan}" gcloud dataplex datascans describe "$scan" --location="$REGION" --project="$PROJECT"
+  done
+  [[ "$(gcloud_api "https://geminidataanalytics.googleapis.com/v1beta/projects/${PROJECT}/locations/global/dataAgents" \
+    | grep -c '"displayName": *"Pit wall race engineer"')" -ge 1 ]] \
+    && pass "data agent Pit wall race engineer" || fail "data agent Pit wall race engineer"
   [[ "$(bq --project_id="$PROJECT" ls --reservation_assignment --location=US --format=json 2>/dev/null \
     | grep -c '"jobType": *"CONTINUOUS"')" -ge 1 ]] \
     && pass "CONTINUOUS reservation assignment" || fail "CONTINUOUS reservation assignment"

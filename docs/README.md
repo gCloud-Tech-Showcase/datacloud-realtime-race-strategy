@@ -11,6 +11,7 @@ Back to the [repository README](../README.md).
 3. A strategist that answers each moment that matters with a Gemini call from `AI.GENERATE`
 4. A private pit wall that shows the timing, the moments and the calls live
 5. An object table over one photo per team, read by the same `AI.GENERATE` function
+6. A post-race debrief table, governed in Knowledge Catalog as two data products with quality scans, a glossary and lineage, and a data agent that answers questions about the race
 
 ## Technologies
 
@@ -22,6 +23,8 @@ Back to the [repository README](../README.md).
 | BigQuery object tables | Make the car photos in Cloud Storage queryable, with an ObjectRef per file |
 | Cloud Run | The replayer job, the strategist and the pit wall |
 | BigQuery Studio | Saved queries and notebooks for every step |
+| Knowledge Catalog | Data products, data quality, profile and insights scans, a business glossary, aspects and lineage |
+| Conversational Analytics | A data agent that answers questions about the race in plain English, with the SQL shown |
 | OpenTofu | Builds all of it with one `tofu apply` |
 
 ## Results
@@ -37,5 +40,6 @@ From a replay on 2026-10-25:
 | Guide | Covers |
 | --- | --- |
 | [Race Strategy](01-race-strategy.md) | Start the race, read the rules and the calls, and prove it |
+| [Post-Race Debrief](02-debrief.md) | Build the debrief, govern it in Knowledge Catalog, and ask the data agent |
 | [Quick Reference](quick.md) | Copy-paste commands and queries, with sample output |
 | [Architecture](architecture.md) | Pipeline overview, data flow, message formats, observed behaviour |

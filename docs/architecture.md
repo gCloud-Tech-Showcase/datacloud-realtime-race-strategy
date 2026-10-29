@@ -36,6 +36,20 @@ flowchart LR
 
 The car photos sit outside the live path. The apply reads them once, and the pit wall shows them next to each car.
 
+The post-race debrief sits outside it too. A batch query reads the three tables after a replay, and Knowledge Catalog and the data agent read the result:
+
+```mermaid
+flowchart LR
+    RAW[("raw.raw_events")] --> DEB["07 Debrief<br/>batch query"]
+    MOM[("serving.moments")] --> DEB
+    CALLS[("serving.calls")] --> DEB
+    DEB --> LAP[("serving.lap_debrief")]
+    LAP --> KC["Knowledge Catalog<br/>data products, scans,<br/>glossary, lineage"]
+    LAP --> AG["Data agent<br/>Conversational Analytics"]
+    MOM --> AG
+    CALLS --> AG
+```
+
 ## Data Flow
 
 In what order things happen after you press **Start race**, and which calls are made.
@@ -84,6 +98,11 @@ The page also loads an optional stylesheet and banner from `services/pitwall/sta
 | Strategist | `services/strategist/`, Cloud Run service `strategist` | Runs `queries/04-strategist-call.sql` for each safety car, rain start and gap closing |
 | Pit wall | `services/pitwall/`, Cloud Run service `pitwall` | Starts a replay and its continuous queries, shows timing, moments and calls, and cancels the queries when the window ends |
 | Car photos | `infra/media.tf`, `queries/06-cars.sql` | Object table `raw.car_photos` over one photo per team, read once by `AI.GENERATE` into `serving.cars` |
+| Debrief | `queries/07-debrief.sql`, `infra/debrief.tf` | One typed row per car per lap in `serving.lap_debrief`, rebuilt from every replay |
+| Data products | `infra/data_products.tf` | `Race Telemetry` and `Race Strategy` in Knowledge Catalog, location `us` |
+| Scans | `infra/data_scans.tf` | Profile, quality and insights scans, run as `data-scanner`, results published to the catalog |
+| Glossary and aspects | `infra/catalog_glossary.tf`, `infra/catalog_aspects.tf` | 11 terms linked to columns, and the `moment-rules` and `model-description` aspects |
+| Data agent | `infra/agent.tf` | `Pit wall race engineer`, over the four serving tables, with 7 verified queries |
 | Capacity | Reservation `continuous-queries` | Enterprise edition, no baseline, autoscaling to 50 slots, `CONTINUOUS` assignment |
 
 The rendered queries in `queries/` are the single source of SQL. The apply deploys them as saved queries, and passes the same text to the pit wall and the strategist.

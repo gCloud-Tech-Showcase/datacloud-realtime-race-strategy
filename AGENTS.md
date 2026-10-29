@@ -1,6 +1,6 @@
 # datacloud-realtime-race-strategy
 
-Standalone demo: F1 Pit Wall with Real-Time Race Strategy. A Cloud Run job replays laps 30 to 50 of the 2025 Australian Grand Prix from OpenF1 to Pub/Sub. A BigQuery subscription lands every event in `raw.raw_events`. Two continuous queries publish race moments to Pub/Sub. A Cloud Run strategist answers each safety car, rain start and gap closing with a Gemini call from `AI.GENERATE`, and a private Cloud Run pit wall shows it all.
+Standalone demo: F1 Pit Wall with Real-Time Race Strategy. A Cloud Run job replays laps 30 to 50 of the 2025 Australian Grand Prix from OpenF1 to Pub/Sub. A BigQuery subscription lands every event in `raw.raw_events`. Two continuous queries publish race moments to Pub/Sub. A Cloud Run strategist answers each safety car, rain start and gap closing with a Gemini call from `AI.GENERATE`, and a private Cloud Run pit wall shows it all. After the race, a batch query builds a lap-by-lap debrief, which Knowledge Catalog governs (data products, scans, glossary, lineage) and a Conversational Analytics agent answers questions about.
 
 ## Standing it up
 
@@ -35,6 +35,9 @@ Use these terms consistently in code, docs and commit messages.
 | call | A row in `serving.calls`: Gemini's answer to one moment |
 | strategist | The Cloud Run service that makes the calls |
 | pit wall | The Cloud Run web app the reader opens |
+| debrief | `serving.lap_debrief`: one row per car per completed lap, for every replay, built by `queries/07-debrief.sql` |
+| data product | A Knowledge Catalog data product: `Race Telemetry` (raw) or `Race Strategy` (serving) |
+| data agent | The Conversational Analytics agent `Pit wall race engineer` (`infra/agent.tf`) |
 
 ## Data model
 
@@ -47,6 +50,9 @@ The full resource list is in [`README.md`](README.md#what-gets-created).
 | `serving` | `calls` | One row per answered moment, written by the strategist. `status` is `OK` or `FAILED`. |
 | `raw` | `car_photos` | Object table over `media/cars/*.jpg` in the race-data bucket (`infra/media.tf`). Custom metadata on each file holds the team and the credit. |
 | `serving` | `cars` | What Gemini read in each car photo, written once by the saved query `06 Cars` during the apply |
+| `serving` | `lap_debrief` | One row per car per lap, for every replay, rebuilt by the saved query `07 Debrief` (`infra/debrief.tf` runs it once). Typed columns from `raw_events`, plus the car's moments and calls. |
+
+Knowledge Catalog metadata for these tables lives in location `us`, the datasets' multi-region: data products, glossary, aspects and entry links. The scans and the saved queries are in `us-central1`.
 
 The services are in `services/<name>/`, each with a `Dockerfile`. `infra/services.tf` builds them in Cloud Build, tagged with a hash of the source.
 
@@ -81,8 +87,12 @@ Each line is a guardrail. The reasons are in comments next to the code. The obse
 - **Credit every car photo.** Add new photos to `media/car_photos.json` with author, license and source, and keep the pit wall's credits line. Use only CC BY or public domain photos.
 - **Write `thinkingLevel` in uppercase** in `model_params` (`"LOW"`). Lowercase is rejected.
 - **Each query in a guide has a saved query.** `queries/<NN>-<name>.sql` matches the block in step NN (`00` for checks, `99` for stop). Its first line is `-- <display name>`. Change the guide and the file in the same commit.
-- **Each reader-facing script and step guide has a notebook twin.** `scripts/verify.sh` pairs with `notebooks/verify.ipynb`, and `docs/01-race-strategy.md` with `notebooks/01-race-strategy.ipynb`. The notebooks copy the SQL of the saved queries, because a notebook cannot read the repo. Change all three in the same commit.
+- **Each reader-facing script and step guide has a notebook twin.** `scripts/verify.sh` pairs with `notebooks/verify.ipynb`, `docs/01-race-strategy.md` with `notebooks/01-race-strategy.ipynb`, and `docs/02-debrief.md` with `notebooks/02-debrief.ipynb`. The notebooks copy the SQL of the saved queries, because a notebook cannot read the repo. Change all three in the same commit.
 - **Keep the guide's line numbers in step with the files.** `docs/01-race-strategy.md` and `README.md` point at lines in `infra/variables.tf`, `infra/strategist.tf` and `queries/03a-moments-fast.sql`.
+- **Put Knowledge Catalog resources for BigQuery tables in `local.catalog_location`** (`us`), never `var.region`. BigQuery entries live in the dataset's location, and `us-central1` returns 403 for them.
+- **Set the Insights labels inside `queries/07-debrief.sql`.** `CREATE OR REPLACE TABLE` drops labels, and the Insights tab needs the `dataplex-data-documentation-published-*` labels on the table.
+- **Add a new moment to the `moment-is-known` quality rule** in `infra/data_scans.tf`, or its scan fails.
+- **Find the data agent by its display name.** Any edit to `infra/agent.tf` creates a new agent under a new ID, because the provider cannot update one in place.
 - **Record the retirement date next to the Gemini model ID** in `queries/04-strategist-call.sql`. The migration is tracked in [#2](https://github.com/gCloud-Tech-Showcase/datacloud-realtime-race-strategy/issues/2).
 
 ## Teardown
@@ -96,4 +106,5 @@ cd infra && tofu destroy
 
 - [`README.md`](README.md): what the demo does and how to run it
 - [`docs/01-race-strategy.md`](docs/01-race-strategy.md): the step-by-step guide
+- [`docs/02-debrief.md`](docs/02-debrief.md): the post-race debrief, Knowledge Catalog and the data agent
 - [`docs/architecture.md`](docs/architecture.md): wiring, message formats and observed behaviour

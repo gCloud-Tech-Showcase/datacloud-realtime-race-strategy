@@ -9,7 +9,7 @@ PROJECT_ID=<your-project-id>
 Each query is a saved query under **BigQuery Studio > Queries**. To run one from the terminal instead, fill in the project and pipe the file to `bq`:
 
 ```bash
-run_query() { perl -pe "s/\\\$\{project_id\}/$PROJECT_ID/g" "queries/$1.sql" | bq --project_id="$PROJECT_ID" query --use_legacy_sql=false --location=US; }
+run_query() { perl -pe "s/\\\$\{project_id\}/$PROJECT_ID/g; s/\\\$\{region\}/us-central1/g" "queries/$1.sql" | bq --project_id="$PROJECT_ID" query --use_legacy_sql=false --location=US; }
 ```
 
 > **Sample output only.** Values change with every run. Check the shape of the output, not the exact values.
@@ -176,6 +176,29 @@ McLaren | orange, black | 13 | Dropbox, Dash, DELL Technologies, Gemini, avenga,
 
 ---
 
+## 8c. Build the post-race debrief
+
+Saved query **07 Debrief: every car, every lap** rebuilds `serving.lap_debrief` from every replay and shows the latest replay's top five, lap by lap. Run it after each replay. See [Post-Race Debrief](02-debrief.md) for Knowledge Catalog and the data agent.
+
+```bash
+run_query 07-debrief
+```
+
+```text
+| lap | position | driver |      team       |  lap_s  |   compound   | tyre_age_laps | pitted | raining | moments |
+|  50 |        1 | NOR    | McLaren         | 142.395 | INTERMEDIATE |             6 |  false |   false | []      |
+```
+
+Then re-run the quality scans, so the **Data quality** tab covers the new replay:
+
+```bash
+for scan in raw-events-quality moments-quality calls-quality lap-debrief-quality; do
+  gcloud dataplex datascans run "$scan" --location=us-central1 --project="$PROJECT_ID"
+done
+```
+
+---
+
 ## 9. Check the dead-letter topic
 
 Must print nothing. A message here is an event that BigQuery rejected 5 times.
@@ -198,4 +221,4 @@ run_query 99-stop
 
 ## Navigation
 
-[← Overview](README.md) | [Race Strategy](01-race-strategy.md) | [Architecture](architecture.md)
+[← Overview](README.md) | [Race Strategy](01-race-strategy.md) | [Post-Race Debrief](02-debrief.md) | [Architecture](architecture.md)

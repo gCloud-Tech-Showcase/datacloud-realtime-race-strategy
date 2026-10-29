@@ -26,6 +26,7 @@ locals {
 
   query_variables = {
     project_id          = var.project_id
+    region              = var.region
     window_seconds      = var.window_seconds
     gap_closing_seconds = var.gap_closing_seconds
   }

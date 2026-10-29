@@ -9,6 +9,7 @@ There is no stream processor to run and no model to train. The rules are SQL, an
 - **A call per moment:** Gemini answers each safety car, rain start and gap closing with the cars that should box or stay out
 - **A pit wall:** a private web app with a timing tower and a card for each moment with Gemini's call, a **Start race** button, and the continuous queries stopped for you when the replay ends
 - **Photos as rows:** an object table over one photo per team, and the same `AI.GENERATE` reads the colours and sponsors on each car
+- **A post-race debrief:** one typed row per car per lap, two data products in Knowledge Catalog with quality, profile and insights scans, a glossary and lineage, and a Conversational Analytics agent you can ask about the race in plain English
 
 See [`docs/`](docs/README.md) for the step-by-step guide and [`docs/quick.md`](docs/quick.md) for copy-paste commands.
 
@@ -87,9 +88,11 @@ The notebook **Verify** under **BigQuery Studio > Notebooks** runs the same chec
 
 Follow [Race Strategy](docs/01-race-strategy.md). You start the race from the pit wall, read the rules that flag each moment, read Gemini's calls, and prove that no moment was missed.
 
+Then follow [Post-Race Debrief](docs/02-debrief.md). You build the lap-by-lap debrief, find it in Knowledge Catalog with its quality scores and lineage, and ask the data agent about the race.
+
 ## What gets created
 
-Everything regional is in `us-central1`. BigQuery is in the `US` multi-region.
+Everything regional is in `us-central1`. BigQuery is in the `US` multi-region, and so is its Knowledge Catalog metadata.
 
 | Resource | Notes |
 | --- | --- |
@@ -98,17 +101,22 @@ Everything regional is in `us-central1`. BigQuery is in the `US` multi-region.
 | Topic `race-events-dead-letter` | Messages that BigQuery rejected 5 times |
 | BigQuery subscriptions `race-events-bq`, `race-moments-bq` | Land the topics in `raw.raw_events` and `serving.moments` |
 | `-demo` pull subscriptions | One per topic, so you can read the messages yourself. Nothing else reads them. |
-| BigQuery datasets `raw`, `serving` | `raw_events` and the object table `car_photos`, and `moments`, `calls` and `cars` |
+| BigQuery datasets `raw`, `serving` | `raw_events` and the object table `car_photos`, and `moments`, `calls`, `cars` and `lap_debrief` |
 | Reservation `continuous-queries` | Enterprise edition, no baseline, autoscaling to 50 slots, with a `CONTINUOUS` assignment |
 | Cloud Run job `replayer` | Replays the race to `race-events` |
 | Cloud Run services `strategist`, `pitwall` | The calls, and the web app. Neither allows public access. |
 | BigQuery connection `vertex-ai-connection` | Lets `AI.GENERATE` call Gemini, and reads the car photos for the object table |
-| Saved queries `00 Check: replays so far`, `02 Events: ...` and 7 more | Under **BigQuery Studio > Queries**, one per `queries/*.sql` |
+| Saved queries `00 Check: replays so far`, `02 Events: ...` and 8 more | Under **BigQuery Studio > Queries**, one per `queries/*.sql` |
 | Notebooks `01 Race Strategy`, `Verify` | Under **BigQuery Studio > Notebooks**, one per `notebooks/*.ipynb` |
 | Runtime template `F1 Pit Wall: Real-Time Race Strategy notebooks` | Colab Enterprise runtime for the notebooks, on the `notebooks` network with no public IP. It stops after 1 hour idle. |
 | Artifact Registry repository `services` | The three container images |
 | Bucket `<project>-build-staging` | Cloud Build's copy of the submitted source. Objects expire after 7 days. |
-| Service accounts | `replayer`, `strategist`, `pitwall`, `cq-runner`, `moments-push`, `service-builder` |
+| Data products `Race Telemetry`, `Race Strategy` | Knowledge Catalog, location `us`. `raw_events` and `car_photos`, and the four serving tables, each owned by a team |
+| Data scans | Profile and quality on `raw_events`, `moments`, `calls` and `lap_debrief`, insights on the last three. Run once during the apply, in `us-central1`. |
+| Glossary `Race strategy` | 11 terms, linked to the columns they define |
+| Aspect types `moment-rules`, `model-description` | On `serving.moments`, and on `serving.calls` and `serving.cars` |
+| Data agent `Pit wall race engineer` | Conversational Analytics, under **BigQuery > Agents**, over the four serving tables, with 7 verified queries |
+| Service accounts | `replayer`, `strategist`, `pitwall`, `cq-runner`, `moments-push`, `service-builder`, `data-scanner` |
 
 ## Known limitations
 

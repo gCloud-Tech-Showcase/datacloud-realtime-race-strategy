@@ -31,6 +31,12 @@ resource "google_project_service" "apis" {
     # these the console shows an Enable APIs prompt on every notebook.
     "compute.googleapis.com",          # Colab Enterprise runtime and its network
     "cloudaicompanion.googleapis.com", # Gemini in BigQuery, including the notebook assistant
+
+    # The post-race debrief (debrief.tf, data_products.tf, data_scans.tf,
+    # catalog_*.tf, agent.tf).
+    "dataplex.googleapis.com",            # Knowledge Catalog: data products, scans, glossary, aspects
+    "datalineage.googleapis.com",         # lineage of BigQuery jobs, from the moment it is enabled
+    "geminidataanalytics.googleapis.com", # Conversational Analytics data agent
   ])
 
   service = each.value
