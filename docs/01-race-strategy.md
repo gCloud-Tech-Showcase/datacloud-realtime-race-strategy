@@ -295,7 +295,7 @@ In `infra/strategist.tf`, line 77, in the `CALL_MOMENTS` value, let the strategi
 +        value = "SAFETY_CAR,RAIN_STARTED,GAP_CLOSING,RED_FLAG"
 ```
 
-Apply as above. This race has no red flag in laps 30 to 50, so nothing new appears. Set `openf1_session_key`, the replay window and `race_name` in `infra/variables.tf` to a race that has one to see it fire.
+Apply as above. This race has no red flag in laps 30 to 50, so nothing new appears. Set `openf1_session_key`, the replay window, `race_name` and `race_laps` in `infra/variables.tf` to a race that has one to see it fire.
 
 ### Replay faster
 

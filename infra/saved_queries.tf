@@ -29,6 +29,7 @@ locals {
     region              = var.region
     window_seconds      = var.window_seconds
     gap_closing_seconds = var.gap_closing_seconds
+    race_laps           = var.race_laps
   }
 
   rendered_queries = {

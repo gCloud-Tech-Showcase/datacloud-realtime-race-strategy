@@ -96,6 +96,15 @@ variable "race_name" {
   default     = "2025 Australian Grand Prix"
 }
 
+# The 2025 Australian Grand Prix was scheduled for 58 laps and ran 57, after
+# an aborted start. Gemini weighs tyre age against the laps remaining, so set
+# this with openf1_session_key.
+variable "race_laps" {
+  description = "Laps in the race, given to Gemini in each strategy call. Change it with openf1_session_key."
+  type        = number
+  default     = 57
+}
+
 variable "data_product_owner" {
   description = "Email listed as the owner of the two data products, when data_product_groups sets no owner group. Empty means the account running tofu apply, or the scanner service account if that email is not available."
   type        = string

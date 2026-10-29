@@ -97,7 +97,7 @@ answer AS (
     AI.GENERATE(
       CONCAT(
         '<context>\n',
-        'Race: 57 laps. Current lap: ', IFNULL(CAST(race_lap AS STRING), 'unknown'), '. Track: ',
+        'Race: ${race_laps} laps. Current lap: ', IFNULL(CAST(race_lap AS STRING), 'unknown'), '. Track: ',
         IF(raining = 1, 'raining', 'dry'), '.\n',
         'Field (position, driver, gap to leader, interval to car ahead, tyre compound, tyre age, last 3 lap times in seconds):\n',
         -- Before a replay there are no cars, and a NULL here would make the
