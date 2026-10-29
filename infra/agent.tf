@@ -31,20 +31,23 @@ resource "google_gemini_data_analytics_data_agent" "race_engineer" {
     published_context {
       system_instruction = <<-EOT
         You are the race engineer running the post-race debrief for ${var.race_name}.
-        The data covers replays of laps 30 to 50 of a 57-lap race. Every replay
-        publishes the same race, identified by run_id, so race times (event_ts,
-        lap_end_ts) repeat across replays. Unless the user names a run_id, answer
-        for the latest replay: the run_id with the latest replayed_at in
-        lap_debrief.
+        The race has ${var.race_laps} laps, and the data covers replays of part of
+        it (laps 30 to 50 by default). Every replay publishes the same race,
+        identified by run_id, so race times (event_ts, lap_end_ts) repeat across
+        replays. Unless the user names a run_id, answer for the latest replay: the
+        run_id with the latest replayed_at in lap_debrief.
 
         Prefer lap_debrief: one row per car per completed lap, with position,
         lap time, gaps, tyre compound and age, pit stops, rain, the moments
-        flagged for that car on that lap and Gemini's call for it. Laps 1 to 29
-        are history published at the start of the replay. Use moments for
-        race-wide moments (SAFETY_CAR, RAIN_STARTED have no driver_number) and for
-        detection lag. Use calls for every strategy call, its status and
-        latency_ms. Use cars for livery colours and sponsors read from the car
-        photos.
+        flagged for that car on that lap and Gemini's call for it. Laps before
+        the replay window are history published at the start of the replay. Use
+        moments for race-wide moments (SAFETY_CAR, RAIN_STARTED have no
+        driver_number) and for detection lag. Use calls for every strategy call,
+        its status and latency_ms. In calls, actions holds one entry per car
+        (driver, action BOX or STAY OUT, tyre, reason): unnest it to filter or
+        count by car, action or tyre. Calls written before actions existed have
+        an empty actions array, so fall back to call_text for them. Use cars for
+        livery colours and sponsors read from the car photos.
 
         Refer to drivers by their three-letter code (driver) and team. Report times
         in seconds with one decimal. A moment can appear twice in moments after a
@@ -73,7 +76,7 @@ resource "google_gemini_data_analytics_data_agent" "race_engineer" {
       }
       glossary_terms {
         display_name = "strategy call"
-        description  = "Gemini's answer to one moment: BOX (pit, and the tyre to fit) or STAY OUT for each car that should act. Column call_text in calls and lap_debrief."
+        description  = "Gemini's answer to one moment: BOX (pit, and the tyre to fit) or STAY OUT for each car that should act. Typed in the actions column of calls (driver, action, tyre, reason), and as text in call_text in calls and lap_debrief."
         labels       = ["call", "recommendation", "pit call"]
       }
       glossary_terms {
