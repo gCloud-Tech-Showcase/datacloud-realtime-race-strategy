@@ -7,3 +7,16 @@
 # project_id       = "datacloud-pitwall"
 # region           = "us-central1"
 # dataset_location = "US"
+
+# --- Optional: Google Groups on the data products ---
+# Create the groups first. Each one is optional: an owner group replaces the
+# default owner, the stewards approve access requests, and each consumer group
+# gets read access to the tables of its data products.
+#
+# data_product_groups = {
+#   telemetry_owners = "pitwall-telemetry-owners@example.com" # owns Race Telemetry
+#   strategy_owners  = "pitwall-strategy-owners@example.com"  # owns Race Strategy
+#   stewards         = "pitwall-data-stewards@example.com"    # approves access requests
+#   analysts         = "pitwall-analysts@example.com"         # reads Race Strategy
+#   data_scientists  = "pitwall-data-scientists@example.com"  # reads both products
+# }

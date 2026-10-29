@@ -112,6 +112,7 @@ Everything regional is in `us-central1`. BigQuery is in the `US` multi-region, a
 | Artifact Registry repository `services` | The three container images |
 | Bucket `<project>-build-staging` | Cloud Build's copy of the submitted source. Objects expire after 7 days. |
 | Data products `Race Telemetry`, `Race Strategy` | Knowledge Catalog, location `us`. `raw_events` and `car_photos`, and the four serving tables, each owned by a team |
+| Access groups and their grants | Only when `data_product_groups` is set: owner groups, stewards who approve requests, and read access for analysts and data scientists. See [Post-Race Debrief](docs/02-debrief.md#optional-owners-stewards-and-consumers-as-google-groups). |
 | Data scans | Profile and quality on `raw_events`, `moments`, `calls` and `lap_debrief`, insights on the last three. Run once during the apply, in `us-central1`. |
 | Glossary `Race strategy` | 11 terms, linked to the columns they define |
 | Aspect types `moment-rules`, `model-description` | On `serving.moments`, and on `serving.calls` and `serving.cars` |

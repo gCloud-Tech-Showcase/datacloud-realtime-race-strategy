@@ -37,6 +37,7 @@ Use these terms consistently in code, docs and commit messages.
 | pit wall | The Cloud Run web app the reader opens |
 | debrief | `serving.lap_debrief`: one row per car per completed lap, for every replay, built by `queries/07-debrief.sql` |
 | data product | A Knowledge Catalog data product: `Race Telemetry` (raw) or `Race Strategy` (serving) |
+| access group | A consumer group on a data product (`analyst`, `data-scientist`), set from `data_product_groups`. Its members can read the product's tables. |
 | data agent | The Conversational Analytics agent `Pit wall race engineer` (`infra/agent.tf`) |
 
 ## Data model
@@ -93,6 +94,7 @@ Each line is a guardrail. The reasons are in comments next to the code. The obse
 - **Set the Insights labels inside `queries/07-debrief.sql`.** `CREATE OR REPLACE TABLE` drops labels, and the Insights tab needs the `dataplex-data-documentation-published-*` labels on the table.
 - **Leave `gap-to-leader-is-a-number` failing.** It fails on purpose, to show a failing quality rule, on OpenF1's `+1 LAP` text in a numeric field. Every other rule passes on clean replays, so a new failure is a real problem.
 - **Add a new moment to the `moment-is-known` quality rule** in `infra/data_scans.tf`, or its scan fails.
+- **Keep `data_product_groups` optional.** Readers have no groups, so every group must be skippable and the default must create the products without any. Real group emails go in a gitignored tfvars file, never in a committed file.
 - **Find the data agent by its display name.** Any edit to `infra/agent.tf` creates a new agent under a new ID, because the provider cannot update one in place.
 - **Record the retirement date next to the Gemini model ID** in `queries/04-strategist-call.sql`. The migration is tracked in [#2](https://github.com/gCloud-Tech-Showcase/datacloud-realtime-race-strategy/issues/2).
 

@@ -97,7 +97,19 @@ variable "race_name" {
 }
 
 variable "data_product_owner" {
-  description = "Email listed as the owner of the two data products. Empty means the account running tofu apply, or the scanner service account if that email is not available."
+  description = "Email listed as the owner of the two data products, when data_product_groups sets no owner group. Empty means the account running tofu apply, or the scanner service account if that email is not available."
   type        = string
   default     = ""
+}
+
+variable "data_product_groups" {
+  description = "Optional Google Groups for the data products: an owner group per product, the stewards who approve access requests, and two consumer access groups. Any group left empty is skipped. Leave the whole variable empty to create the products without groups."
+  type = object({
+    telemetry_owners = optional(string, "")
+    strategy_owners  = optional(string, "")
+    stewards         = optional(string, "")
+    analysts         = optional(string, "")
+    data_scientists  = optional(string, "")
+  })
+  default = {}
 }

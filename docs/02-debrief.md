@@ -64,6 +64,32 @@ Open **Knowledge Catalog > Data products** in the console (`https://console.clou
 
 A data product packages tables for the people who use them, with an owner and a description. Each product has an owning team, and both live in the same project. `infra/data_products.tf` defines them.
 
+### Optional: owners, stewards and consumers as Google Groups
+
+Set `data_product_groups` in a tfvars file to give each role a Google Group. Create the groups first. Any group you leave out is skipped, and without the variable the products have no groups.
+
+| Group | Role | Race Telemetry | Race Strategy |
+| --- | --- | --- | --- |
+| Trackside Engineering | Owner | Owner | |
+| Race Strategy team | Owner | | Owner |
+| Data stewards | Approves access requests, keeps the glossary, aspects and quality rules | Approver | Approver |
+| Race analysts | Consumer access group | | Read |
+| Race data scientists | Consumer access group | Read | Read |
+
+```hcl
+data_product_groups = {
+  telemetry_owners = "pitwall-telemetry-owners@example.com"
+  strategy_owners  = "pitwall-strategy-owners@example.com"
+  stewards         = "pitwall-data-stewards@example.com"
+  analysts         = "pitwall-analysts@example.com"
+  data_scientists  = "pitwall-data-scientists@example.com"
+}
+```
+
+Each access group gets `roles/bigquery.dataViewer` on every table of its products. Knowledge Catalog applies the grant, and removes it when the group or the table leaves the product. Joining the group is what gives a person access. The service accounts that write the tables, such as `replayer`, `cq-runner` and `strategist`, are the producers.
+
+Open a product's **Access groups** tab to see the groups, then a table's **Share** panel to see the grant. Someone outside the groups, with `roles/dataplex.dataProductsConsumer`, can request access from the product page, and the stewards approve it.
+
 ---
 
 ## Step 3: Read the quality scores
