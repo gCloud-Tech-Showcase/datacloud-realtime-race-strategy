@@ -166,17 +166,17 @@ WHERE c.run_id = target_run
 ORDER BY c.event_ts;
 ```
 
-A call for the rain start on lap 44:
+A call for the rain start on lap 44, as `call_text`:
 
 ```text
-VER: BOX for INTERMEDIATE; rain active, slick pace dropping, midfield already switched.
-TSU: BOX for INTERMEDIATE; rain active, cover cars behind pitting for wet weather tyres.
-HAM: BOX for INTERMEDIATE; track wet, slick tyres unviable as field transitions.
-GAS: BOX for INTERMEDIATE; rain started, switch to intermediate to avoid losing time.
-LEC: BOX for INTERMEDIATE; track wet, lap times falling sharply on hard tyres.
+VER: BOX for INTERMEDIATE - Rain started, rivals behind already switched to intermediates.
+TSU: BOX for INTERMEDIATE - Switch to intermediates as track becomes wet.
+HAM: BOX for INTERMEDIATE - Cover wet conditions and fit intermediate tyres.
+GAS: BOX for INTERMEDIATE - Rain arriving, switch from slick hard tyres.
+LEC: BOX for INTERMEDIATE - Pace dropping, switch to intermediate compound immediately.
 ```
 
-*From a replay on 2026-10-25, 4.1 seconds after the moment arrived.*
+*From saved query 04 on 2026-10-29, for the rain start of replay run-4dd1cc64. The wording changes with every call.*
 
 When Gemini fails, the call is written with `status = 'FAILED'` and the error, and the pit wall shows it in red. Nothing falls back silently.
 

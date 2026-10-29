@@ -24,10 +24,10 @@ locals {
   model_descriptions = {
     calls = {
       model        = local.gemini_model
-      access       = "BigQuery AI.GENERATE through the vertex-ai-connection, thinking level LOW"
+      access       = "BigQuery AI.GENERATE through the vertex-ai-connection, thinking level LOW. The rules are a system instruction and the answer follows a responseSchema, both in model_params."
       purpose      = "Answers one moment with a strategy call: for each car that should act, BOX or STAY OUT, the tyre to fit and why."
       inputs       = "A snapshot of all 20 cars at the moment's race time (position, gap to leader, interval, tyre compound and age, last 3 lap times) and whether it is raining. queries/04-strategist-call.sql."
-      outputs      = "call_text, or status FAILED with the error. latency_ms is from receiving the moment to writing the call."
+      outputs      = "actions (up to 5 cars, each with driver, action, tyre and reason, the action and tyre limited to known values) and call_text (the same answer as one line per car), or status FAILED with the error. latency_ms is from receiving the moment to writing the call."
       known_limits = "Grounded recommendations, not ground truth: not benchmarked against race engineers. Answers vary slightly between runs. A cold start after scale to zero took 37.6 s."
     }
     cars = {

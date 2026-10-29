@@ -95,11 +95,12 @@ The page also loads an optional stylesheet and banner from `services/pitwall/sta
 | Replayer | `services/replayer/`, Cloud Run job `replayer` | Publishes the window to `race-events` at `replay_speed`, with a `run_id` |
 | Fast rules | `queries/03a-moments-fast.sql` | `SAFETY_CAR`, `PIT_STOP` and `RAIN_STARTED` from one event |
 | Windowed rules | `queries/03b-moments-windowed.sql` | `GAP_CLOSING` from a `TUMBLE` window per car |
-| Strategist | `services/strategist/`, Cloud Run service `strategist` | Runs `queries/04-strategist-call.sql` for each safety car, rain start and gap closing |
+| Strategist | `services/strategist/`, Cloud Run service `strategist` | Runs `queries/04-strategist-call.sql` for each safety car, rain start and gap closing, and writes the typed `actions` and the `call_text` to `serving.calls` |
 | Pit wall | `services/pitwall/`, Cloud Run service `pitwall` | Starts a replay and its continuous queries, shows timing, moments and calls, and cancels the queries when the window ends |
 | Car photos | `infra/media.tf`, `queries/06-cars.sql` | Object table `raw.car_photos` over one photo per team, read once by `AI.GENERATE` into `serving.cars` |
 | Debrief | `queries/07-debrief.sql`, `infra/debrief.tf` | One typed row per car per lap in `serving.lap_debrief`, rebuilt from every replay |
 | Data products | `infra/data_products.tf` | `Race Telemetry` and `Race Strategy` in Knowledge Catalog, location `us` |
+| Access groups | `infra/data_product_access.tf` | Only when `data_product_groups` is set: project roles so consumer groups can run queries and request access, and stewards can edit the catalog and the scans |
 | Scans | `infra/data_scans.tf` | Profile, quality and insights scans, run as `data-scanner`, results published to the catalog |
 | Glossary and aspects | `infra/catalog_glossary.tf`, `infra/catalog_aspects.tf` | 11 terms linked to columns, and the `moment-rules` and `model-description` aspects |
 | Data agent | `infra/agent.tf` | `Pit wall race engineer`, over the four serving tables, with 7 verified queries |

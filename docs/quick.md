@@ -134,11 +134,14 @@ Saved query **04b Calls: the strategist's answers**:
 run_query 04b-calls
 ```
 
-Each row has the moment, the lap, the car, `status` (`OK` or `FAILED`), the seconds the call took and `call_text`:
+Each row has the moment, the lap, the car, `status` (`OK` or `FAILED`), the seconds the call took and `call_text`, one line per car:
 
 ```text
-GAP_CLOSING | 40 | GAS | OK | 4.0 | GAS: STAY OUT, gap to HAM closed to 0.437s, within DRS range with 7-lap-old tyres.
+GAP_CLOSING | 41 | GAS | OK | 5.2 | GAS: STAY OUT - Closing rapidly on HAM ahead with fresher pace on dry track
+                                    HAM: STAY OUT - Defend track position against GAS in close DRS train
 ```
+
+The typed answer is in `serving.calls.actions`: one row per car, with `driver`, `action`, `tyre` and `reason`.
 
 ---
 

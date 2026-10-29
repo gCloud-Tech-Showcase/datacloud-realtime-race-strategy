@@ -48,7 +48,7 @@ The full resource list is in [`README.md`](README.md#what-gets-created).
 | --- | --- | --- |
 | `raw` | `raw_events` | Every race event, written by the `race-events-bq` subscription (`infra/tables.tf`) |
 | `serving` | `moments` | Every moment, written by the `race-moments-bq` subscription. A moment can appear twice after a continuous query restarts. |
-| `serving` | `calls` | One row per answered moment, written by the strategist. `status` is `OK` or `FAILED`. |
+| `serving` | `calls` | One row per answered moment, written by the strategist. `actions` holds Gemini's typed answer, and `call_text` holds the same answer as one line per car. `status` is `OK` or `FAILED`. |
 | `raw` | `car_photos` | Object table over `media/cars/*.jpg` in the race-data bucket (`infra/media.tf`). Custom metadata on each file holds the team and the credit. |
 | `serving` | `cars` | What Gemini read in each car photo, written once by the saved query `06 Cars` during the apply |
 | `serving` | `lap_debrief` | One row per car per lap, for every replay, rebuilt by the saved query `07 Debrief` (`infra/debrief.tf` runs it once). Typed columns from `raw_events`, plus the car's moments and calls. |
