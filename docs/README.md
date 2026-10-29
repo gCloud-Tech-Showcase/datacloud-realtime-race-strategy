@@ -6,7 +6,7 @@ Back to the [repository README](../README.md).
 
 ## What You'll Build
 
-1. A replay of laps 30 to 50 of the 2025 Australian Grand Prix, published to Pub/Sub and landed in BigQuery with no code
+1. A replay of laps 30 to 50 of the 2025 Australian Grand Prix, published to Pub/Sub and landed in BigQuery through a subscription
 2. Two continuous queries that flag safety cars, pit stops, rain and closing gaps as the events arrive
 3. A strategist that answers each moment that matters with a Gemini call from `AI.GENERATE`
 4. A private pit wall that shows the timing, the moments and the calls live

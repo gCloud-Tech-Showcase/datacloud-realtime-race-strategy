@@ -2,7 +2,7 @@
 
 Replay a real Formula 1 race through Pub/Sub and watch BigQuery call the pit stops. Race events land in BigQuery as they arrive. Continuous queries spot a safety car, a pit stop or the start of rain within seconds. For each moment that matters, Gemini reads the state of the field and makes a strategy call, from a query in BigQuery.
 
-There is no stream processor to run and no model to train. The rules are SQL, and the call is one `AI.GENERATE` function. Clone the repo, point it at your own GCP project, and run `tofu apply`.
+The rules are SQL, and the call is one `AI.GENERATE` function. Clone the repo, point it at your own GCP project, and run `tofu apply`.
 
 - **A real race:** laps 30 to 50 of the 2025 Australian Grand Prix from the [OpenF1](https://openf1.org) historical API, with two safety cars and the return of the rain
 - **Moments in seconds:** continuous queries flag safety cars, pit stops and rain 3 to 6 seconds after the event lands (verified on 2026-10-25)

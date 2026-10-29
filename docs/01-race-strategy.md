@@ -53,7 +53,7 @@ Open http://localhost:8080 and press **Start race**.
 
 ## Step 2: Look at the events landing in BigQuery
 
-Every message on `race-events` lands in `raw.raw_events` through a BigQuery subscription, with no code in between. Saved query **02 Events: what landed for the latest replay**:
+Every message on `race-events` lands in `raw.raw_events` through a BigQuery subscription. Saved query **02 Events: what landed for the latest replay**:
 
 ```sql
 DECLARE target_run STRING DEFAULT (
@@ -165,7 +165,7 @@ When Gemini fails, the call is written with `status = 'FAILED'` and the error, a
 
 ## Step 5: Prove it
 
-A green run is not proof. Saved query **05 Proof: flagged moments against the race** works out from the raw events, with an ordinary batch query, which moments the race contains, and compares them with what the continuous queries flagged:
+Saved query **05 Proof: flagged moments against the race** works out from the raw events, with an ordinary batch query, which moments the race contains, and compares them with what the continuous queries flagged:
 
 | run_id | moment | expected | flagged | ok |
 | --- | --- | --- | --- | --- |
@@ -223,9 +223,9 @@ The reservation bills while a continuous query runs. The pit wall cancels both a
 
 | Capability | Technology | Business value |
 | --- | --- | --- |
-| Land a stream in tables with no code | Pub/Sub BigQuery subscriptions | Every event is queryable as it arrives |
+| Land a stream in tables | Pub/Sub BigQuery subscriptions | Every event is queryable as it arrives |
 | Spot a moment in seconds, in SQL | BigQuery continuous queries | The rule is a `WHERE` clause that an analyst can read and change |
-| Aggregate over time on a stream | `TUMBLE` windows (Preview) | Trends such as a closing gap, with no stream processor to run |
+| Aggregate over time on a stream | `TUMBLE` windows (Preview) | Trends such as a closing gap, in a 30-second SQL window |
 | Make a judgement call from data | `AI.GENERATE` with Gemini | A decision in seconds, from the same query that gathers the facts |
 | Query files like rows | Object tables and ObjectRef | Photos, documents or audio in Cloud Storage, read by the same SQL function |
 

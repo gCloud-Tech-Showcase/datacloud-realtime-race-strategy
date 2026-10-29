@@ -12,7 +12,7 @@ PROJECT_ID=<your-project-id>
 
 | Step | What you do | What you see |
 | --- | --- | --- |
-| 1 | Build the debrief | One row per car per lap, with typed columns instead of JSON |
+| 1 | Build the debrief | One row per car per lap, with typed columns |
 | 2 | Find the data products | Race Telemetry and Race Strategy, each owned by a team |
 | 3 | Read the quality scores | A pass or fail per rule, by dimension, for every replay |
 | 4 | Read the profile, insights and glossary | Column statistics, suggested questions and business terms |
@@ -62,7 +62,7 @@ Open **Knowledge Catalog > Data products** in the console (`https://console.clou
 | Race Telemetry | Trackside Engineering | `raw.raw_events`, `raw.car_photos` |
 | Race Strategy | Race Strategy team | `serving.moments`, `serving.calls`, `serving.lap_debrief`, `serving.cars` |
 
-A data product packages tables for the people who use them, with an owner and a description. Both products live in one project: the boundary is ownership, not projects. `infra/data_products.tf` defines them.
+A data product packages tables for the people who use them, with an owner and a description. Each product has an owning team, and both live in the same project. `infra/data_products.tf` defines them.
 
 ---
 
@@ -70,8 +70,6 @@ A data product packages tables for the people who use them, with an owner and a 
 
 In BigQuery, open `serving.lap_debrief` and its **Data quality** tab. The apply ran one quality scan per table, and published each result to the catalog.
 
-| Table | Rules passed | Score | Failed rule |
-| --- | --- | --- | --- |
 | Table | Rules passed | Score | Failed rule |
 | --- | --- | --- | --- |
 | `serving.moments` | 4 of 4 | 100 | |
@@ -149,7 +147,7 @@ Each answer shows the SQL it ran. The verified queries pin how the agent answers
 
 | Capability | Technology | Business value |
 | --- | --- | --- |
-| Turn JSON events into a typed table | One BigQuery batch query | Analysts query laps and tyres, not payloads |
+| Turn JSON events into a typed table | One BigQuery batch query | One row per car per lap, with position, tyres and gaps |
 | Package data by owner | Knowledge Catalog data products | Consumers find what a team publishes and who to ask |
 | Check data with rules everyone can see | Knowledge Catalog data quality scans | A pass or fail per rule, by dimension, on the table itself |
 | Explain a table without reading SQL | Profiles, insights, glossary and aspects | Column statistics, suggested questions and business terms in one place |

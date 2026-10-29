@@ -5,8 +5,7 @@
 #
 #   Race Telemetry ──> Race Strategy ──> the pit wall, the data agent, the debrief
 #
-# Everything lives in one project. The products come from ownership, not from
-# project boundaries.
+# Each product has its own owning team, and both live in the same project.
 # =============================================================================
 
 locals {
